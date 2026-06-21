@@ -2,5 +2,11 @@
 .milestone-driver-*
 .milestone-feeder*
 
+# Suite config under .milestone-config/ is tracked (driver.json, feeder.json);
+# these per-clone scratch artifacts are not:
+.milestone-config/triage-cache.json
+.milestone-config/*-notice
+.milestone-config/worktrees/
+
 # macOS
 .DS_Store
