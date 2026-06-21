@@ -2,9 +2,15 @@
 
 A single Claude Code plugin **marketplace** that catalogs the milestone dev-tools suite — [`milestone-bootstrapper`](https://github.com/kenmulford/milestone-bootstrapper), [`milestone-feeder`](https://github.com/kenmulford/milestone-feeder), and [`milestone-driver`](https://github.com/kenmulford/milestone-driver) — so you add **one** marketplace and install the whole suite. The plugins live in their own repos; this repo is just the catalog.
 
-Status: **planning.** The build is specified as a feeder brief — [BRIEF.md](BRIEF.md) — meant to be handed to `/milestone-feeder:plan` (dogfooding: the suite builds its own marketplace). Part of the [dev-tools](../dev-tools) suite; this is the suite-linkage deferred in dev-tools DECISIONS D1.
+## Plugins
 
-Once built, install will be:
+- **[milestone-bootstrapper](https://github.com/kenmulford/milestone-bootstrapper)** — bootstrap a repo's project brain (standing docs).
+- **[milestone-feeder](https://github.com/kenmulford/milestone-feeder)** — plan features into milestones of well-formed issues.
+- **[milestone-driver](https://github.com/kenmulford/milestone-driver)** — drive milestone issues to merged PRs.
+
+## Install
+
+Install the whole suite:
 
 ```
 /plugin marketplace add kenmulford/milestone-suite
