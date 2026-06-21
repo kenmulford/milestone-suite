@@ -1,0 +1,6 @@
+# Suite tooling — per-run scratch (milestone-driver + milestone-feeder)
+.milestone-driver-*
+.milestone-feeder*
+
+# macOS
+.DS_Store
