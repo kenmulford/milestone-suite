@@ -1,0 +1,106 @@
+# Validates the load-bearing catalog artifact, .claude-plugin/marketplace.json.
+# A malformed or non-conformant manifest breaks `/plugin marketplace add` for
+# every user, and this repo has no application code or test suite to catch it.
+#
+# This workflow has two tiers, kept deliberately separate:
+#   FLOOR   (always runs, ALWAYS blocks the build on violation)
+#   CEILING (best-effort, NEVER blocks the build when it can't run cleanly)
+#
+# jq is preinstalled on GitHub-hosted ubuntu-latest runners, so the checks are
+# inline shell + jq with no extra tooling.
+
+name: validate-marketplace
+
+on:
+  push:
+    paths:
+      - .claude-plugin/marketplace.json
+      - .github/workflows/validate-marketplace.yml
+  pull_request:
+    paths:
+      - .claude-plugin/marketplace.json
+      - .github/workflows/validate-marketplace.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      MANIFEST: .claude-plugin/marketplace.json
+    steps:
+      - uses: actions/checkout@v4
+
+      # ----- FLOOR (always blocks) -------------------------------------------
+      # 1) The manifest must parse as JSON. `jq empty` reads the whole file and
+      #    exits non-zero on any syntax error, failing the build.
+      - name: FLOOR - parse as JSON
+        run: jq empty "$MANIFEST"
+
+      # 2) Structural invariants. Each `jq -e` exits non-zero (failing the build)
+      #    when its assertion is false or null. Invariants are taken from the
+      #    recorded target manifest.
+      - name: FLOOR - structural invariants
+        run: |
+          set -euo pipefail
+
+          # Top-level required keys present.
+          jq -e 'has("name") and has("owner") and has("plugins")' "$MANIFEST" \
+            >/dev/null || { echo "::error::missing top-level name/owner/plugins"; exit 1; }
+
+          # plugins is a NON-EMPTY array. An absent plugins key reads as null
+          # here and fails the type check, so this one assertion covers both the
+          # empty-array and the missing-key cases.
+          jq -e '(.plugins | type == "array") and (.plugins | length > 0)' "$MANIFEST" \
+            >/dev/null || { echo "::error::plugins must be a non-empty array"; exit 1; }
+
+          # Every plugins[] entry: has a name, and a source object that is the
+          # github type with a repo matching owner/repo shape (no slashes within
+          # either segment). `all` is true on an empty stream, but the non-empty
+          # check above guarantees there is at least one entry to validate.
+          jq -e '
+            .plugins
+            | all(
+                (.name | type == "string" and length > 0)
+                and (.source | type == "object")
+                and (.source.source == "github")
+                and (.source.repo | type == "string" and test("^[^/]+/[^/]+$"))
+              )
+          ' "$MANIFEST" >/dev/null \
+            || { echo "::error::each plugin needs a name and a github source with an owner/repo repo"; exit 1; }
+
+          echo "FLOOR passed: manifest is well-formed and structurally conformant."
+
+      # ----- CEILING (best-effort, never blocks) -----------------------------
+      # Deeper checks that depend on the network. continue-on-error keeps a
+      # transient failure (unreachable URL, rate limit, missing permission) from
+      # reddening the build; they surface as warnings/annotations only.
+
+      # Full JSON-schema validation is deferred until the published marketplace
+      # schema URL (the manifest's $schema) resolves; it currently 404s, so
+      # there is nothing to validate against. The FLOOR above enforces the
+      # schema's key invariants in the meantime. No remote-fetch validator is
+      # run at CI time.
+
+      # Best-effort: confirm each cataloged repo resolves. Never blocks on
+      # network/rate-limit/permission errors. GITHUB_TOKEN is the runner's
+      # default token; a missing/limited token only downgrades to a warning.
+      - name: CEILING - repo resolution (best-effort)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          jq -r '.plugins[].source.repo' "$MANIFEST" | while read -r repo; do
+            [ -z "$repo" ] && continue
+            code="$(curl -s -m 20 -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$repo")"
+            if [ "$code" = "200" ]; then
+              echo "::notice::repo resolves: $repo"
+            else
+              echo "::warning::could not confirm repo $repo (HTTP $code) - non-blocking"
+            fi
+          done
