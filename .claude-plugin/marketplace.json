@@ -7,8 +7,8 @@
   },
   "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
   "plugins": [
-    { "name": "milestone-bootstrapper", "source": { "source": "github", "repo": "kenmulford/milestone-bootstrapper" } },
-    { "name": "milestone-feeder",       "source": { "source": "github", "repo": "kenmulford/milestone-feeder" } },
-    { "name": "milestone-driver",       "source": { "source": "github", "repo": "kenmulford/milestone-driver" } }
+    { "name": "milestone-bootstrapper", "source": { "source": "url", "url": "https://github.com/kenmulford/milestone-bootstrapper.git" } },
+    { "name": "milestone-feeder",       "source": { "source": "url", "url": "https://github.com/kenmulford/milestone-feeder.git" } },
+    { "name": "milestone-driver",       "source": { "source": "url", "url": "https://github.com/kenmulford/milestone-driver.git" } }
   ]
 }

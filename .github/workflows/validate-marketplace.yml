@@ -55,20 +55,34 @@ jobs:
           jq -e '(.plugins | type == "array") and (.plugins | length > 0)' "$MANIFEST" \
             >/dev/null || { echo "::error::plugins must be a non-empty array"; exit 1; }
 
-          # Every plugins[] entry: has a name, and a source object that is the
-          # github type with a repo matching owner/repo shape (no slashes within
-          # either segment). `all` is true on an empty stream, but the non-empty
-          # check above guarantees there is at least one entry to validate.
+          # Every plugins[] entry: has a name, and a source object in one of two
+          # accepted forms:
+          #   - github: .source.source == "github" with .source.repo matching the
+          #     owner/repo shape (no slashes within either segment), OR
+          #   - url: .source.source == "url" with .source.url an https:// string.
+          # The url form clones plugins over HTTPS so installs don't require an
+          # SSH key or an ssh->https git rewrite. `all` is true on an empty
+          # stream, but the non-empty check above guarantees there is at least
+          # one entry to validate.
           jq -e '
             .plugins
             | all(
                 (.name | type == "string" and length > 0)
                 and (.source | type == "object")
-                and (.source.source == "github")
-                and (.source.repo | type == "string" and test("^[^/]+/[^/]+$"))
+                and (
+                  (
+                    (.source.source == "github")
+                    and (.source.repo | type == "string" and test("^[^/]+/[^/]+$"))
+                  )
+                  or
+                  (
+                    (.source.source == "url")
+                    and (.source.url | type == "string" and test("^https://"))
+                  )
+                )
               )
           ' "$MANIFEST" >/dev/null \
-            || { echo "::error::each plugin needs a name and a github source with an owner/repo repo"; exit 1; }
+            || { echo "::error::each plugin needs a name and a source that is either github (owner/repo) or url (https://...)"; exit 1; }
 
           echo "FLOOR passed: manifest is well-formed and structurally conformant."
 
@@ -86,13 +100,26 @@ jobs:
       # Best-effort: confirm each cataloged repo resolves. Never blocks on
       # network/rate-limit/permission errors. GITHUB_TOKEN is the runner's
       # default token; a missing/limited token only downgrades to a warning.
+      #
+      # The owner/repo slug is derived per plugin from whichever source form is
+      # present: the github form carries it directly in .source.repo; the url
+      # form carries it inside .source.url, from which we strip the github.com
+      # host prefix and any trailing .git so the same api.github.com check runs.
       - name: CEILING - repo resolution (best-effort)
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -uo pipefail
-          jq -r '.plugins[].source.repo' "$MANIFEST" | while read -r repo; do
+          jq -r '
+            .plugins[].source
+            | if .source == "github" then .repo
+              elif .source == "url" then
+                (.url
+                  | sub("^https?://github\\.com/"; "")
+                  | sub("\\.git$"; ""))
+              else empty end
+          ' "$MANIFEST" | while read -r repo; do
             [ -z "$repo" ] && continue
             code="$(curl -s -m 20 -o /dev/null -w '%{http_code}' \
               -H "Authorization: Bearer $GH_TOKEN" \
