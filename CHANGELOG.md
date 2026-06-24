@@ -10,4 +10,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - `milestone-suite` Claude Code plugin marketplace catalog, installable as a single marketplace.
-- Catalogs the three suite plugins via `github` sources: `milestone-bootstrapper`, `milestone-feeder`, and `milestone-driver`.
+- Catalogs the four suite plugins via `github` sources: `milestone-bootstrapper`, `milestone-feeder`, `milestone-driver`, and `milestone-coherence-reviewer`.
