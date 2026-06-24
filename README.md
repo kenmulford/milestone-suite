@@ -1,12 +1,13 @@
 # milestone-suite
 
-A single Claude Code plugin **marketplace** that catalogs the milestone dev-tools suite — [`milestone-bootstrapper`](https://github.com/kenmulford/milestone-bootstrapper), [`milestone-feeder`](https://github.com/kenmulford/milestone-feeder), and [`milestone-driver`](https://github.com/kenmulford/milestone-driver) — so you add **one** marketplace and install the whole suite. The plugins live in their own repos; this repo is just the catalog.
+A single Claude Code plugin **marketplace** that catalogs the milestone dev-tools suite — [`milestone-bootstrapper`](https://github.com/kenmulford/milestone-bootstrapper), [`milestone-feeder`](https://github.com/kenmulford/milestone-feeder), [`milestone-driver`](https://github.com/kenmulford/milestone-driver), and [`milestone-coherence-reviewer`](https://github.com/kenmulford/milestone-coherence-reviewer) — so you add **one** marketplace and install the whole suite. The plugins live in their own repos; this repo is just the catalog.
 
 ## Plugins
 
 - **[milestone-bootstrapper](https://github.com/kenmulford/milestone-bootstrapper)** — bootstrap a repo's project brain (standing docs).
 - **[milestone-feeder](https://github.com/kenmulford/milestone-feeder)** — plan features into milestones of well-formed issues.
 - **[milestone-driver](https://github.com/kenmulford/milestone-driver)** — drive milestone issues to merged PRs.
+- **[milestone-coherence-reviewer](https://github.com/kenmulford/milestone-coherence-reviewer)** — review a built change for fit with how the app is already built.
 
 ## Install
 
@@ -17,6 +18,7 @@ Install the whole suite:
 /plugin install milestone-bootstrapper@milestone-suite
 /plugin install milestone-feeder@milestone-suite
 /plugin install milestone-driver@milestone-suite
+/plugin install milestone-coherence-reviewer@milestone-suite
 ```
 
 Each plugin also remains individually installable from its own repo.
@@ -25,7 +27,7 @@ Each plugin pulls in the required `superpowers` plugin automatically, and each n
 
 ## How to use the suite
 
-The three plugins run in order. You set your project up once with the bootstrapper — it writes the standing docs under `.project/` and the shared config under `.milestone-config/`, and the feeder and driver both read those. Capture how the project is built once, and every step after it grounds in that instead of guessing.
+The three build plugins run in order, and the coherence-reviewer runs after each change is built. You set your project up once with the bootstrapper — it writes the standing docs under `.project/` and the shared config under `.milestone-config/`, and the feeder, driver, and coherence-reviewer all read those. Capture how the project is built once, and every step after it grounds in that instead of guessing.
 
 1. **Bootstrap your project brain** — [`milestone-bootstrapper`](https://github.com/kenmulford/milestone-bootstrapper)
 
@@ -52,6 +54,14 @@ The three plugins run in order. You set your project up once with the bootstrapp
    ```
    /milestone-driver:solve-milestone "myapp v1.0.0"   # the milestone name the feeder set
    /milestone-driver:solve-issue 58                   # or drive a single issue
+   ```
+
+**After a change is built (optional)** — [`milestone-coherence-reviewer`](https://github.com/kenmulford/milestone-coherence-reviewer)
+
+   Checks whether a built change fits how the rest of the app is already built — the helpers, patterns, and conventions it should have reused. It fixes small drift inline and files bigger drift as issues, and never blocks the merge. The driver runs it for you during a build; run it yourself to review any branch or PR.
+
+   ```
+   /milestone-coherence-reviewer:review <branch-or-PR>   # review a built change for fit
    ```
 
 Each plugin's README has the full walkthrough — every command, its prerequisites, and how to set it up.
