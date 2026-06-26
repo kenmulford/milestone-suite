@@ -5,7 +5,6 @@
   "metadata": {
     "description": "The milestone dev-tools suite: bootstrap a repo's project brain, plan features into milestones, and drive them to merged PRs."
   },
-  "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
   "plugins": [
     { "name": "milestone-bootstrapper",       "source": { "source": "url", "url": "https://github.com/kenmulford/milestone-bootstrapper.git" } },
     { "name": "milestone-feeder",             "source": { "source": "url", "url": "https://github.com/kenmulford/milestone-feeder.git" } },
