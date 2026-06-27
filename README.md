@@ -11,7 +11,7 @@ A single Claude Code plugin **marketplace** that catalogs the milestone dev-tool
 
 ## Install
 
-Install the whole suite:
+**First install `superpowers`** — every plugin needs it, and it's a manual prerequisite (not auto-installed): add the `claude-plugins-official` marketplace and install `superpowers` from it. Then install the suite:
 
 ```
 /plugin marketplace add kenmulford/milestone-suite
@@ -23,7 +23,7 @@ Install the whole suite:
 
 Each plugin also remains individually installable from its own repo.
 
-Each plugin pulls in the required `superpowers` plugin automatically, and each needs the GitHub CLI (`gh`) installed and signed in. Restart Claude Code after installing so the plugins load. Every plugin's README lists its own exact prerequisites.
+Each plugin also needs the GitHub CLI (`gh`) installed and signed in. Restart Claude Code after installing so the plugins load. Every plugin's README lists its own exact prerequisites.
 
 ## How to use the suite
 
