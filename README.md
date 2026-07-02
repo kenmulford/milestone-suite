@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/milestone-suite-banner.svg" alt="milestone-suite" width="480">
+  <img src="assets/milestone-suite-banner.png" alt="milestone-suite" width="480">
 </p>
 
 A single Claude Code plugin **marketplace** that catalogs the milestone dev-tools suite — [`milestone-bootstrapper`](https://github.com/kenmulford/milestone-bootstrapper), [`milestone-feeder`](https://github.com/kenmulford/milestone-feeder), [`milestone-driver`](https://github.com/kenmulford/milestone-driver), and [`milestone-coherence-reviewer`](https://github.com/kenmulford/milestone-coherence-reviewer) — so you add **one** marketplace and install the whole suite. The plugins live in their own repos; this repo is just the catalog.
