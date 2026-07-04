@@ -1,4 +1,6 @@
-# milestone-suite
+<p align="center">
+  <img src="assets/milestone-suite.svg" alt="milestone-suite — AI dev tooling for Claude Code" width="554">
+</p>
 
 A single Claude Code plugin **marketplace** that catalogs the milestone dev-tools suite — [`milestone-bootstrapper`](https://github.com/kenmulford/milestone-bootstrapper), [`milestone-feeder`](https://github.com/kenmulford/milestone-feeder), [`milestone-driver`](https://github.com/kenmulford/milestone-driver), and [`milestone-coherence-reviewer`](https://github.com/kenmulford/milestone-coherence-reviewer) — so you add **one** marketplace and install the whole suite. The plugins live in their own repos; this repo is just the catalog.
 
@@ -8,6 +10,46 @@ A single Claude Code plugin **marketplace** that catalogs the milestone dev-tool
 - **[milestone-feeder](https://github.com/kenmulford/milestone-feeder)** — plan features into milestones of well-formed issues.
 - **[milestone-driver](https://github.com/kenmulford/milestone-driver)** — drive milestone issues to merged PRs.
 - **[milestone-coherence-reviewer](https://github.com/kenmulford/milestone-coherence-reviewer)** — review a built change for fit with how the app is already built.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 900}} }%%
+flowchart TD
+    boot(["milestone-bootstrapper · run once — preps the repo &amp; writes the shared config"])
+
+    plan[/"your project / feature plan<br/>(e.g. a superpowers plan)"/]
+
+    subgraph loop [the build loop — repeats per feature]
+        direction TB
+        subgraph sgF [milestone-feeder — the entry point]
+            direction LR
+            f1["read your plan"] --> f2["split into milestone(s)<br/>+ issues in build order"] --> f3["create on GitHub<br/>large feature → parent issue<br/>(md-epic + sub-issues)"]
+        end
+        subgraph sgD [milestone-driver — does the work]
+            direction LR
+            d1["triage"] --> d2["find the root cause"] --> d3["solve test-first"] --> d4["review the diff<br/>merge on green CI"]
+        end
+        subgraph sgR [coherence-reviewer — vets the work]
+            direction LR
+            r1["review the built change"] --> r2["fits the framework &amp;<br/>patterns you've built?"] --> r3["small drift → fixed<br/>larger drift → new issues"]
+        end
+
+        sgF -->|pass an issue or milestone ID| sgD
+        sgD -->|after each build| sgR
+    end
+
+    boot ~~~ plan
+    plan --> sgF
+    boot <-.-|all three read the shared config| loop
+
+    style boot fill:#DEEBF5,stroke:#3A82B4,color:#15212B
+    style plan fill:#FFFFFF,stroke:#94A9B8,color:#33506B
+    style loop fill:#F5F9FC,stroke:#B9CFDF,color:#33506B
+    style sgF fill:#FFFFFF,stroke:#5AA6D4,color:#3A82B4
+    style sgD fill:#FFFFFF,stroke:#3A82B4,stroke-width:2px,color:#3A82B4
+    style sgR fill:#FFFFFF,stroke:#5AA6D4,color:#3A82B4
+    classDef action fill:#EDF4FA,stroke:#7FAECE,color:#15212B
+    class f1,f2,f3,d1,d2,d3,d4,r1,r2,r3 action
+```
 
 ## Install
 
