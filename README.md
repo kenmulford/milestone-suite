@@ -12,7 +12,6 @@ A single Claude Code plugin **marketplace** that catalogs the milestone dev-tool
 - **[milestone-coherence-reviewer](https://github.com/kenmulford/milestone-coherence-reviewer)** — review a built change for fit with how the app is already built.
 
 ```mermaid
-%%{init: {"flowchart": {"wrappingWidth": 900}} }%%
 flowchart TD
     boot(["milestone-bootstrapper · run once — preps the repo &amp; writes the shared config"])
 
@@ -21,15 +20,15 @@ flowchart TD
     subgraph loop [the build loop — repeats per feature]
         direction TB
         subgraph sgF [milestone-feeder — the entry point]
-            direction LR
+            direction TB
             f1["read your plan"] --> f2["split into milestone(s)<br/>+ issues in build order"] --> f3["create on GitHub<br/>large feature → parent issue<br/>(md-epic + sub-issues)"]
         end
         subgraph sgD [milestone-driver — does the work]
-            direction LR
+            direction TB
             d1["triage"] --> d2["find the root cause"] --> d3["solve test-first"] --> d4["review the diff<br/>merge on green CI"]
         end
         subgraph sgR [coherence-reviewer — vets the work]
-            direction LR
+            direction TB
             r1["review the built change"] --> r2["fits the framework &amp;<br/>patterns you've built?"] --> r3["small drift → fixed<br/>larger drift → new issues"]
         end
 
