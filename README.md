@@ -63,6 +63,8 @@ flowchart TD
 /plugin install milestone-coherence-reviewer@milestone-suite
 ```
 
+(The marketplace manifest's `$schema` field is for tooling discovery — the URL isn't a resolvable schema yet, so CI's FLOOR tier is what actually enforces the manifest's structural invariants.)
+
 Each plugin also remains individually installable from its own repo.
 
 Each plugin also needs the GitHub CLI (`gh`) installed and signed in. Restart Claude Code after installing so the plugins load. Every plugin's README lists its own exact prerequisites.
