@@ -129,7 +129,14 @@ Return CANDIDATES (tag like #A, title, surface ui|logic, risk light|heavy, sketc
 
   if (!arch || !arch.candidates || arch.candidates.length === 0) {
     log('Architect returned no candidates — aborting rep.')
-    throw new Error('no candidates')
+    // Tagged sentinel (not a generic Error) so the rep loop below can tell this expected,
+    // recordable abort apart from a genuine bug (e.g. agent() throwing on a network/schema
+    // failure). arch is carried on the error so an all-reps-failed run can still report the
+    // last rep's architect output instead of losing it.
+    const err = new Error('architect produced no candidates')
+    err.isAbort = true
+    err.arch = arch
+    throw err
   }
   const allCandidates = arch.candidates
   const productGaps = arch.product_gaps || []
@@ -251,18 +258,30 @@ Return issue and gaps (each: lens, severity Blocker|Advisory, type, description,
 }
 
 // ── Repeatability (benchmarks/HARNESS.md "Repeatability"): 3 reps, sequential ──
-// Sequential (not parallel()) — matches RESULTS.md:90's "run sequentially (clean wall-clock)"
-// precedent for this same scenario: measuring wall-clock under concurrent reps would conflate
-// rep-to-rep contention with the thing we're trying to measure.
+// Sequential (not parallel()) so wall-clock isn't contaminated by rep-to-rep contention — the
+// same reason RESULTS.md:90 gives for the sibling scenario01 harness ("run sequentially (clean
+// wall-clock)"), applied here on its own merits: RESULTS.md:90 sits in the Scenario 01 section
+// (documents scenario01-tier-run.mjs's own results), not scenario06's — there is no
+// scenario06-specific "run sequentially" citation in HARNESS.md or RESULTS.md, so this is stated
+// as this harness's own rationale rather than a borrowed precedent.
 const REPS = 3
 const perRep = []
+let lastArch = null
 for (let i = 0; i < REPS; i++) {
   const t0 = Date.now()
   try {
     const { dispatches, outcome, architectGaps } = await runOnce(i)
     perRep.push({ rep: i + 1, error: null, dispatches, outcome, architectGaps, wallClockMs: Date.now() - t0 })
   } catch (e) {
-    log(`Rep ${i + 1} failed: ${String((e && e.message) || e)}`)
+    const isAbort = !!(e && e.isAbort)
+    if (e && e.arch !== undefined) lastArch = e.arch
+    if (isAbort) {
+      log(`Rep ${i + 1} failed: ${String((e && e.message) || e)}`)
+    } else {
+      // A genuine bug (not the architect-abort sentinel) — log distinctly so a human scanning
+      // the log can tell "architect legitimately returned nothing" apart from "our harness broke".
+      log(`Rep ${i + 1} — UNEXPECTED ERROR (not the architect-abort sentinel): ${String((e && e.message) || e)}`)
+    }
     perRep.push({ rep: i + 1, error: String((e && e.message) || e), dispatches: null, outcome: null, architectGaps: null, wallClockMs: null })
   }
 }
@@ -277,6 +296,16 @@ function summarize(values) {
 
 const successful = perRep.filter(r => !r.error)
 const repsSucceeded = successful.length
+
+// AC2 (issue #33): zero successful reps out of REPS means every architect dispatch aborted (or
+// crashed) — do NOT write/overwrite the baseline JSON. Return the original single-run error shape
+// (pre-existing abort behavior), tagged with how many reps were attempted vs succeeded. This is
+// deliberately the OPPOSITE of sibling issue #32/scenario01-tier-run.mjs, which always persists —
+// that divergence is a recorded follow-up decision item on both issues, not a bug here.
+if (repsSucceeded === 0) {
+  log(`All ${REPS} reps failed — no baseline written; returning the single-run error shape (repsAttempted ${REPS}, repsSucceeded 0).`)
+  return { config: CONFIG, error: 'architect produced no candidates', arch: lastArch || null, repsAttempted: REPS, repsSucceeded: 0 }
+}
 
 const wallClockSummary = summarize(successful.map(r => r.wallClockMs))
 const dispatchesTotalSummary = summarize(successful.map(r => r.dispatches.total))
