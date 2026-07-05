@@ -1,3 +1,12 @@
+> **Historical / superseded.** This brief describes the design that seeded the suite's v0.1.0
+> milestone; the shipped design has since diverged (see `.claude-plugin/marketplace.json` for
+> the current manifest and `CHANGELOG.md` for what changed and why — notably, the suite now
+> catalogs a fourth plugin (`milestone-coherence-reviewer`), plugin sources use the `url`/HTTPS
+> form rather than the `github` form shown below, and the `allowCrossMarketplaceDependenciesOn`
+> key shown below has been removed). Kept for provenance; not a current spec.
+
+---
+
 # milestone-suite — feeder brief
 
 > **How to use this doc.** This is a feature brief for `milestone-feeder`. Run `/milestone-feeder:plan BRIEF.md` in this repo; the feeder will decompose it into a milestone of small, well-formed issues, which `milestone-driver` then builds. Intent + recorded decisions are below so the feeder grounds rather than parks; it is deliberately **not** pre-broken into issues.
