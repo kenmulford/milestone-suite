@@ -1,6 +1,8 @@
+import { mkdirSync, writeFileSync } from 'node:fs'
+
 export const meta = {
   name: 'feeder-plan-scenario06-after',
-  description: 'After-benchmark: run feeder plan Steps 3-6 on scenario 06 with the REAL installed agents at explicit tiers; measure dispatches. args.earlyPark toggles #87 Step-3.5.',
+  description: 'After-benchmark: run feeder plan Steps 3-6 on scenario 06 with the REAL installed agents at explicit tiers; measure dispatches. args.earlyPark toggles #87 Step-3.5. Runs 3 reps per invocation and persists a mean/min/max baseline (benchmarks/HARNESS.md "Repeatability").',
   phases: [
     { title: 'Architect', detail: 'milestone-feeder:architect @ opus (x1)' },
     { title: 'Author', detail: 'milestone-feeder:issue-author @ sonnet (cap-4)' },
@@ -17,6 +19,7 @@ const earlyPark = !!(_args && _args.earlyPark === true)
 const CONFIG = earlyPark
   ? 'point3 — as-shipped (Sonnet + concurrency + #87 Step-3.5 early-park)'
   : 'point2 — tiering + concurrency, NO #87 (Step-3.5 disabled)'
+const CONFIG_SLUG = earlyPark ? 'point3' : 'point2'
 
 // ── Scenario 06 inputs (faithful to the fixture; runner runs BLIND — no expected.md) ──
 const BRIEF = `goal: Build the admin list pages — one table page per entity, each showing that entity's records with the standard columns for that entity, plus row actions (view / edit / delete).
@@ -94,11 +97,18 @@ async function capped(items, fn, cap) {
 const isBlocker = (gaps) => (gaps || []).some(g => (g.severity || '').toLowerCase() === 'blocker')
 const edgesFor = (tag, edges) => (edges || []).filter(e => e.includes(tag))
 
-log(`CONFIG: ${CONFIG}`)
+// ── One rep of the Architect→Author→Triage→Design(+Step 3.5) pipeline ─────────
+// Returns { dispatches, outcome, architectGaps }. Throws on the "no candidates" abort (there is
+// no top-level to return from inside this function) so the rep loop below can catch it and
+// record the failure per-rep instead of the whole run dying. Step 3.5 (early-park) lives INSIDE
+// this function — it depends on this rep's own architect output (non-deterministic-adjacent),
+// so it must re-run fresh each rep, not be hoisted above the loop.
+async function runOnce(repIndex) {
+  log(`CONFIG: ${CONFIG}`)
 
-// ── Step 3 — architect (x1, opus) ─────────────────────────────────────────────
-phase('Architect')
-const arch = await agent(`${GROUND}
+  // ── Step 3 — architect (x1, opus) ───────────────────────────────────────────
+  phase('Architect')
+  const arch = await agent(`${GROUND}
 
 You are the milestone-feeder ARCHITECT (Step 3 of /milestone-feeder:plan). Decompose this brief into the smallest set of independent ~1-PR candidate issues, build the dependency graph + Wave order, and separate PRODUCT gaps (a decision with NO conventional default that the project docs / a stated convention cannot answer — never guessed) from design decisions the project docs DO answer (resolve + cite those).
 
@@ -115,37 +125,37 @@ issueSize: ~1 PR each, independently buildable.
 productGaps carried from Step 2: none.
 
 Return CANDIDATES (tag like #A, title, surface ui|logic, risk light|heavy, sketch with the .project ref grounding its design), EDGES, WAVES, and PRODUCT_GAPS. For each PRODUCT_GAP set blocks: to the candidate tags that gap blocks (or [] if it is a broad decision tied to no specific candidate).`,
-  { agentType: 'milestone-feeder:architect', model: 'opus', phase: 'Architect', label: 'architect', schema: ARCH_SCHEMA })
+    { agentType: 'milestone-feeder:architect', model: 'opus', phase: 'Architect', label: 'architect', schema: ARCH_SCHEMA })
 
-if (!arch || !arch.candidates || arch.candidates.length === 0) {
-  log('Architect returned no candidates — aborting run.')
-  return { config: CONFIG, error: 'architect produced no candidates', arch }
-}
-const allCandidates = arch.candidates
-const productGaps = arch.product_gaps || []
+  if (!arch || !arch.candidates || arch.candidates.length === 0) {
+    log('Architect returned no candidates — aborting rep.')
+    throw new Error('no candidates')
+  }
+  const allCandidates = arch.candidates
+  const productGaps = arch.product_gaps || []
 
-// ── Step 3.5 — early park (point 3 only) ──────────────────────────────────────
-const parked = new Set()
-if (earlyPark) {
-  for (const g of productGaps) for (const t of (g.blocks || [])) parked.add(t)
-  // drop transitive dependents of a pre-parked candidate (a dependent of a parked issue cannot build)
-  let changed = true
-  while (changed) {
-    changed = false
-    for (const e of (arch.edges || [])) {
-      // edge form: "#B depends_on #A — reason"
-      const m = e.match(/(#\w+)\s+depends_on\s+(#\w+)/i)
-      if (m && parked.has(m[2]) && !parked.has(m[1])) { parked.add(m[1]); changed = true }
+  // ── Step 3.5 — early park (point 3 only) ────────────────────────────────────
+  const parked = new Set()
+  if (earlyPark) {
+    for (const g of productGaps) for (const t of (g.blocks || [])) parked.add(t)
+    // drop transitive dependents of a pre-parked candidate (a dependent of a parked issue cannot build)
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const e of (arch.edges || [])) {
+        // edge form: "#B depends_on #A — reason"
+        const m = e.match(/(#\w+)\s+depends_on\s+(#\w+)/i)
+        if (m && parked.has(m[2]) && !parked.has(m[1])) { parked.add(m[1]); changed = true }
+      }
     }
   }
-}
-const fanCandidates = allCandidates.filter(c => !parked.has(c.tag))
-log(`Architect → ${allCandidates.length} candidates, ${productGaps.length} product gap(s). earlyPark=${earlyPark} → ${parked.size} pre-parked, fan out over ${fanCandidates.length}.`)
+  const fanCandidates = allCandidates.filter(c => !parked.has(c.tag))
+  log(`Architect → ${allCandidates.length} candidates, ${productGaps.length} product gap(s). earlyPark=${earlyPark} → ${parked.size} pre-parked, fan out over ${fanCandidates.length}.`)
 
-// ── Step 4 — issue-author per candidate (sonnet, cap-4) ───────────────────────
-phase('Author')
-const waveText = (arch.waves || []).join('\n')
-const authored = await capped(fanCandidates, (c) => agent(`${GROUND}
+  // ── Step 4 — issue-author per candidate (sonnet, cap-4) ─────────────────────
+  phase('Author')
+  const waveText = (arch.waves || []).join('\n')
+  const authored = await capped(fanCandidates, (c) => agent(`${GROUND}
 
 You are the milestone-feeder ISSUE-AUTHOR (Step 4). Author ONE issue's full specification (Summary / Acceptance criteria / Design / Dependencies / Classification), engineered to pass the driver's triage clean (GAPS: none). Record every design call against the project docs and CITE it (.project/design-system.md#<section> or a sibling file:line). For a UI issue enumerate happy + empty + error/failure + disabled states, name the existing pattern to mirror, and include accessibility labels. If a decision the acceptance criteria require has NO conventional default and the project docs / a stated convention cannot answer it, return status PRODUCT_GAP — do NOT invent scope.
 
@@ -164,15 +174,15 @@ ${SHARED_KEYS}
 Edges naming this candidate: ${edgesFor(c.tag, arch.edges).join(' | ') || 'none'}
 
 Return status (AUTHORED|PRODUCT_GAP), issue_tag, title, issue_body, labels (and product_gap_what / product_gap_why when PRODUCT_GAP).`,
-  { agentType: 'milestone-feeder:issue-author', model: 'sonnet', phase: 'Author', label: `author:${c.tag}`, schema: AUTHOR_SCHEMA }), 4)
+    { agentType: 'milestone-feeder:issue-author', model: 'sonnet', phase: 'Author', label: `author:${c.tag}`, schema: AUTHOR_SCHEMA }), 4)
 
-const authoredOk = authored.filter(Boolean).filter(a => a.status === 'AUTHORED')
-const authorGaps = authored.filter(Boolean).filter(a => a.status === 'PRODUCT_GAP')
-log(`Authors → ${authoredOk.length} AUTHORED, ${authorGaps.length} returned PRODUCT_GAP (of ${fanCandidates.length} dispatched).`)
+  const authoredOk = authored.filter(Boolean).filter(a => a.status === 'AUTHORED')
+  const authorGaps = authored.filter(Boolean).filter(a => a.status === 'PRODUCT_GAP')
+  log(`Authors → ${authoredOk.length} AUTHORED, ${authorGaps.length} returned PRODUCT_GAP (of ${fanCandidates.length} dispatched).`)
 
-// ── Step 6 Pass 1 — triage-reviewer per generated issue (sonnet, cap-4) ────────
-phase('Triage')
-const triaged = await capped(authoredOk, (a) => agent(`${GROUND}
+  // ── Step 6 Pass 1 — triage-reviewer per generated issue (sonnet, cap-4) ──────
+  phase('Triage')
+  const triaged = await capped(authoredOk, (a) => agent(`${GROUND}
 
 You are the milestone-driver TRIAGE-REVIEWER running the feeder self-check gate (read-only, against the provided generated issue text — make no gh call). Assess whether this generated issue is buildable as written, across the five criteria (Consistency, Buildability, Completeness, Dependencies, UI-flag). Default to flagging: a genuinely unsure call escalates to a Blocker.
 
@@ -188,12 +198,12 @@ ${waveText || '(single wave)'}
 Profile: sourceGlobs ["src/**"]; uiSurfaceGlobs ["src/pages/**","src/components/**"]; nonNegotiables ["React 18 + TypeScript"].
 
 Return issue, depends_on, needs_design_review (true when this is a UI issue under uiSurfaceGlobs), and gaps (each: lens, severity Blocker|Advisory, type, description, to_clear). Empty gaps array = GAPS: none.`,
-  { agentType: 'milestone-driver:triage-reviewer', model: 'sonnet', phase: 'Triage', label: `triage:${a.issue_tag}`, schema: TRIAGE_SCHEMA }).then(v => ({ a, v })), 4)
+    { agentType: 'milestone-driver:triage-reviewer', model: 'sonnet', phase: 'Triage', label: `triage:${a.issue_tag}`, schema: TRIAGE_SCHEMA }).then(v => ({ a, v })), 4)
 
-// ── Step 6 Pass 2 — design-reviewer for NEEDS_DESIGN_REVIEW: yes (sonnet, cap-4) ─
-phase('Design')
-const needDesign = triaged.filter(Boolean).filter(t => t.v && t.v.needs_design_review)
-const designed = await capped(needDesign, (t) => agent(`${GROUND}
+  // ── Step 6 Pass 2 — design-reviewer for NEEDS_DESIGN_REVIEW: yes (sonnet, cap-4) ─
+  phase('Design')
+  const needDesign = triaged.filter(Boolean).filter(t => t.v && t.v.needs_design_review)
+  const designed = await capped(needDesign, (t) => agent(`${GROUND}
 
 You are the milestone-driver DESIGN-REVIEWER running the feeder self-check gate (read-only, against the provided generated issue text). Assess whether this UI issue's recorded design is specified well enough to build a correct, acceptable result: does it name the existing pattern to mirror (file:line), the required states (empty/loading/error/disabled), the affordances (e.g. confirm dialog for a destructive op like delete), and accessibility labels? "Will produce a poor result" or a missing required state/affordance is a Blocker.
 
@@ -204,39 +214,115 @@ ${t.a.issue_body || '(empty)'}
 Pointers to existing UI surfaces (uiSurfaceGlobs): ["src/pages/**","src/components/**"] (e.g. the shared src/components/DataTable.tsx named in the project docs — not openable in this run; assess against the provided text).
 
 Return issue and gaps (each: lens, severity Blocker|Advisory, type, description, to_clear). Empty gaps array = GAPS: none.`,
-  { agentType: 'milestone-driver:design-reviewer', model: 'sonnet', phase: 'Design', label: `design:${t.a.issue_tag}`, schema: DESIGN_SCHEMA }).then(v => ({ a: t.a, v })), 4)
+    { agentType: 'milestone-driver:design-reviewer', model: 'sonnet', phase: 'Design', label: `design:${t.a.issue_tag}`, schema: DESIGN_SCHEMA }).then(v => ({ a: t.a, v })), 4)
 
-// ── Aggregate the gate verdict per issue ──────────────────────────────────────
-const designByTag = {}
-for (const d of designed.filter(Boolean)) designByTag[d.a.issue_tag] = d.v
-let passed = 0, failed = 0
-for (const t of triaged.filter(Boolean)) {
-  const dg = designByTag[t.a.issue_tag]
-  const fail = isBlocker(t.v && t.v.gaps) || isBlocker(dg && dg.gaps)
-  if (fail) failed++; else passed++
+  // ── Aggregate the gate verdict per issue ────────────────────────────────────
+  const designByTag = {}
+  for (const d of designed.filter(Boolean)) designByTag[d.a.issue_tag] = d.v
+  let passed = 0, failed = 0
+  for (const t of triaged.filter(Boolean)) {
+    const dg = designByTag[t.a.issue_tag]
+    const fail = isBlocker(t.v && t.v.gaps) || isBlocker(dg && dg.gaps)
+    if (fail) failed++; else passed++
+  }
+
+  const dispatches = {
+    architect: 1,
+    author: fanCandidates.length,
+    triage: authoredOk.length,
+    design: needDesign.length,
+    total: 1 + fanCandidates.length + authoredOk.length + needDesign.length,
+  }
+  log(`DONE ${CONFIG} rep ${repIndex + 1} → dispatches total=${dispatches.total} (arch ${dispatches.architect} / author ${dispatches.author} / triage ${dispatches.triage} / design ${dispatches.design}); gate PASS ${passed} / FAIL ${failed}; pre-parked ${parked.size}; author-product-gaps ${authorGaps.length}.`)
+
+  return {
+    dispatches,
+    outcome: {
+      candidates: allCandidates.length,
+      productGaps: productGaps.length,
+      preParked: parked.size,
+      authored: authoredOk.length,
+      authorProductGaps: authorGaps.length,
+      gatePass: passed,
+      gateFail: failed,
+    },
+    architectGaps: productGaps.map(g => ({ gap: g.gap, blocks: g.blocks })),
+  }
 }
 
-const dispatches = {
-  architect: 1,
-  author: fanCandidates.length,
-  triage: authoredOk.length,
-  design: needDesign.length,
-  total: 1 + fanCandidates.length + authoredOk.length + needDesign.length,
+// ── Repeatability (benchmarks/HARNESS.md "Repeatability"): 3 reps, sequential ──
+// Sequential (not parallel()) — matches RESULTS.md:90's "run sequentially (clean wall-clock)"
+// precedent for this same scenario: measuring wall-clock under concurrent reps would conflate
+// rep-to-rep contention with the thing we're trying to measure.
+const REPS = 3
+const perRep = []
+for (let i = 0; i < REPS; i++) {
+  const t0 = Date.now()
+  try {
+    const { dispatches, outcome, architectGaps } = await runOnce(i)
+    perRep.push({ rep: i + 1, error: null, dispatches, outcome, architectGaps, wallClockMs: Date.now() - t0 })
+  } catch (e) {
+    log(`Rep ${i + 1} failed: ${String((e && e.message) || e)}`)
+    perRep.push({ rep: i + 1, error: String((e && e.message) || e), dispatches: null, outcome: null, architectGaps: null, wallClockMs: null })
+  }
 }
-log(`DONE ${CONFIG} → dispatches total=${dispatches.total} (arch ${dispatches.architect} / author ${dispatches.author} / triage ${dispatches.triage} / design ${dispatches.design}); gate PASS ${passed} / FAIL ${failed}; pre-parked ${parked.size}; author-product-gaps ${authorGaps.length}.`)
 
-return {
-  config: CONFIG,
+function summarize(values) {
+  if (!values.length) return { mean: null, min: null, max: null, variancePct: null }
+  const mean = values.reduce((a, b) => a + b, 0) / values.length
+  const min = Math.min(...values), max = Math.max(...values)
+  const variancePct = mean ? ((max - min) / mean) * 100 : null
+  return { mean, min, max, variancePct }
+}
+
+const successful = perRep.filter(r => !r.error)
+const repsSucceeded = successful.length
+
+const wallClockSummary = summarize(successful.map(r => r.wallClockMs))
+const dispatchesTotalSummary = summarize(successful.map(r => r.dispatches.total))
+
+const insufficientSamples = repsSucceeded < REPS
+
+const varianceFlags = {
+  wallClockMs: wallClockSummary.variancePct != null && wallClockSummary.variancePct > 20,
+  dispatchesTotal: dispatchesTotalSummary.variancePct != null && dispatchesTotalSummary.variancePct > 20,
+  insufficientSamples,
+}
+varianceFlags.needsMoreReps = varianceFlags.wallClockMs || varianceFlags.dispatchesTotal || insufficientSamples
+
+if (varianceFlags.wallClockMs) {
+  log(`needs more reps: wallClockMs spread ${wallClockSummary.variancePct.toFixed(1)}% exceeds the 20% threshold (mean ${wallClockSummary.mean.toFixed(0)}ms, min ${wallClockSummary.min}ms, max ${wallClockSummary.max}ms).`)
+}
+if (varianceFlags.dispatchesTotal) {
+  log(`needs more reps: dispatchesTotal spread ${dispatchesTotalSummary.variancePct.toFixed(1)}% exceeds the 20% threshold (mean ${dispatchesTotalSummary.mean.toFixed(1)}, min ${dispatchesTotalSummary.min}, max ${dispatchesTotalSummary.max}).`)
+}
+if (insufficientSamples && !varianceFlags.wallClockMs && !varianceFlags.dispatchesTotal) {
+  log(`needs more reps: only ${repsSucceeded}/${REPS} reps succeeded — variance can't be trusted from ${repsSucceeded} sample(s).`)
+}
+
+// ── Persist the baseline (one JSON file per config = current baseline of record) ──
+const resultsDir = 'benchmarks/after/results'
+mkdirSync(resultsDir, { recursive: true })
+const resultsFile = `${resultsDir}/scenario06-${CONFIG_SLUG}.json`
+
+const result = {
+  config: CONFIG_SLUG,
+  configLabel: CONFIG,
   earlyPark,
-  dispatches,
-  outcome: {
-    candidates: allCandidates.length,
-    productGaps: productGaps.length,
-    preParked: parked.size,
-    authored: authoredOk.length,
-    authorProductGaps: authorGaps.length,
-    gatePass: passed,
-    gateFail: failed,
+  repsRequested: REPS,
+  repsSucceeded,
+  perRep,
+  summary: {
+    wallClockMs: wallClockSummary,
+    dispatchesTotal: dispatchesTotalSummary,
+    tokens: { mean: null, min: null, max: null, source: "framework's per-run usage report — not captured in-script; see benchmarks/discovery-map.md:128-129" },
+    costUsd: { mean: null, min: null, max: null, source: "derived from the per-run transcript's token breakdown — not captured in-script" },
   },
-  architectGaps: productGaps.map(g => ({ gap: g.gap, blocks: g.blocks })),
+  varianceFlags,
+  generatedAt: new Date().toISOString(),
 }
+
+writeFileSync(resultsFile, JSON.stringify(result, null, 2))
+log(`Baseline written → ${resultsFile} (reps ${repsSucceeded}/${REPS} succeeded)${varianceFlags.needsMoreReps ? ' — needs more reps' : ''}.`)
+
+return { config: CONFIG_SLUG, configLabel: CONFIG, earlyPark, repsRequested: REPS, repsSucceeded, summary: result.summary, resultsFile }
