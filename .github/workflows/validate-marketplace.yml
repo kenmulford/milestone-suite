@@ -105,6 +105,12 @@ jobs:
       # present: the github form carries it directly in .source.repo; the url
       # form carries it inside .source.url, from which we strip the github.com
       # host prefix and any trailing .git so the same api.github.com check runs.
+      #
+      # Each repo gets up to 3 attempts (1 initial + 2 retries) with a linear
+      # backoff (sleep 3s before attempt 2, 6s before attempt 3) so a transient
+      # blip (rate limit, momentary network hiccup) doesn't produce a false
+      # warning. A persistent failure of any kind (404, 429/403, no response)
+      # is retried and reported identically - no code-specific branching.
       - name: CEILING - repo resolution (best-effort)
         continue-on-error: true
         env:
@@ -121,13 +127,25 @@ jobs:
               else empty end
           ' "$MANIFEST" | while read -r repo; do
             [ -z "$repo" ] && continue
-            code="$(curl -s -m 20 -o /dev/null -w '%{http_code}' \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/$repo")"
-            if [ "$code" = "200" ]; then
+            resolved=""
+            for attempt in 1 2 3; do
+              if [ "$attempt" -gt 1 ]; then
+                sleep "$(( (attempt - 1) * 3 ))"
+              fi
+              code="$(curl -s -m 20 -o /dev/null -w '%{http_code}' \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$repo")" || code="000"
+              if [ "$code" = "200" ]; then
+                resolved="$attempt"
+                break
+              fi
+            done
+            if [ -z "$resolved" ]; then
+              echo "::warning::could not confirm repo $repo after 3 attempts (last HTTP $code) - non-blocking"
+            elif [ "$resolved" = "1" ]; then
               echo "::notice::repo resolves: $repo"
             else
-              echo "::warning::could not confirm repo $repo (HTTP $code) - non-blocking"
+              echo "::notice::repo resolved on retry $resolved: $repo (HTTP 200)"
             fi
           done
