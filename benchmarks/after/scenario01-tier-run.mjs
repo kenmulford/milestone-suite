@@ -1,6 +1,8 @@
+import { mkdirSync, writeFileSync } from 'node:fs'
+
 export const meta = {
   name: 'feeder-plan-scenario01-tier',
-  description: 'Apples-to-apples token/wall-clock measurement: run feeder plan Steps 3-6 on the PASSING scenario 01 (clean happy-path) with the REAL installed agents. args.config = "baseline" (all-Opus, serial) | "tiered" (Sonnet mechanical + Opus architect, concurrent). Same harness = same token accounting.',
+  description: 'Apples-to-apples token/wall-clock measurement: run feeder plan Steps 3-6 on the PASSING scenario 01 (clean happy-path) with the REAL installed agents. args.config = "baseline" (all-Opus, serial) | "tiered" (Sonnet mechanical + Opus architect, concurrent). Same harness = same token accounting. Runs 3 reps per invocation and persists a mean/min/max baseline (benchmarks/HARNESS.md "Repeatability").',
   phases: [
     { title: 'Architect' },
     { title: 'Author' },
@@ -89,10 +91,15 @@ async function capped(items, fn, cap) {
 const isBlocker = (gaps) => (gaps || []).some(g => (g.severity || '').toLowerCase() === 'blocker')
 const edgesFor = (tag, edges) => (edges || []).filter(e => e.includes(tag))
 
-log(`CONFIG: ${CONFIG_LABEL}`)
+// ── One rep of the Architect→Author→Triage→Design pipeline ────────────────────
+// Returns { dispatches, outcome }. Throws on the "no candidates" abort (there is no top-level
+// to return from inside this function) so the rep loop below can catch it and record the
+// failure per-rep instead of the whole run dying.
+async function runOnce(repIndex) {
+  log(`CONFIG: ${CONFIG_LABEL}`)
 
-phase('Architect')
-const arch = await agent(`${GROUND}
+  phase('Architect')
+  const arch = await agent(`${GROUND}
 
 You are the milestone-feeder ARCHITECT (Step 3 of /milestone-feeder:plan). Decompose this brief into the smallest set of independent ~1-PR candidate issues, build the dependency graph + Wave order, and separate PRODUCT gaps (no conventional default) from design decisions the project docs answer (resolve + cite those).
 
@@ -108,15 +115,15 @@ ${SHARED_KEYS}
 issueSize: ~1 PR each, independently buildable. productGaps carried from Step 2: none.
 
 Return CANDIDATES (tag like #A, title, surface ui|logic, risk, sketch grounded in .project), EDGES, WAVES, PRODUCT_GAPS (blocks: [] when not candidate-specific).`,
-  { agentType: 'milestone-feeder:architect', model: ARCH_MODEL, phase: 'Architect', label: 'architect', schema: ARCH_SCHEMA })
+    { agentType: 'milestone-feeder:architect', model: ARCH_MODEL, phase: 'Architect', label: 'architect', schema: ARCH_SCHEMA })
 
-if (!arch || !(arch.candidates || []).length) { log('Architect produced no candidates — aborting.'); return { config, error: 'no candidates' } }
-const candidates = arch.candidates
-log(`Architect → ${candidates.length} candidates, ${(arch.product_gaps||[]).length} product gap(s).`)
+  if (!arch || !(arch.candidates || []).length) { log('Architect produced no candidates — aborting.'); throw new Error('no candidates') }
+  const candidates = arch.candidates
+  log(`Architect → ${candidates.length} candidates, ${(arch.product_gaps||[]).length} product gap(s).`)
 
-phase('Author')
-const waveText = (arch.waves || []).join('\n')
-const authored = await capped(candidates, (c) => agent(`${GROUND}
+  phase('Author')
+  const waveText = (arch.waves || []).join('\n')
+  const authored = await capped(candidates, (c) => agent(`${GROUND}
 
 You are the milestone-feeder ISSUE-AUTHOR (Step 4). Author ONE issue's full spec (Summary / Acceptance criteria / Design / Dependencies / Classification), engineered to pass triage clean (GAPS: none). Record every design call against the project docs and CITE it. For a UI issue enumerate happy + empty + error + disabled states, name the pattern to mirror, include a11y labels. If a required decision has no conventional default, return status PRODUCT_GAP (do not invent scope).
 
@@ -135,16 +142,16 @@ ${SHARED_KEYS}
 Edges naming this candidate: ${edgesFor(c.tag, arch.edges).join(' | ') || 'none'}
 
 Return status, issue_tag, title, issue_body, labels.`,
-  { agentType: 'milestone-feeder:issue-author', model: MECH_MODEL, phase: 'Author', label: `author:${c.tag}`, schema: AUTHOR_SCHEMA }), CAP)
+    { agentType: 'milestone-feeder:issue-author', model: MECH_MODEL, phase: 'Author', label: `author:${c.tag}`, schema: AUTHOR_SCHEMA }), CAP)
 
-const ok = authored.filter(Boolean).filter(a => a.status === 'AUTHORED')
-const gaps = authored.filter(Boolean).filter(a => a.status === 'PRODUCT_GAP')
-const droppedAuthors = candidates.length - ok.length - gaps.length
-if (droppedAuthors > 0) log(`WARNING: ${droppedAuthors} author dispatch(es) returned null (skipped/died) — outcome counts won't sum to ${candidates.length}.`)
-log(`Authors → ${ok.length} AUTHORED, ${gaps.length} PRODUCT_GAP (of ${candidates.length}).`)
+  const ok = authored.filter(Boolean).filter(a => a.status === 'AUTHORED')
+  const gaps = authored.filter(Boolean).filter(a => a.status === 'PRODUCT_GAP')
+  const droppedAuthors = candidates.length - ok.length - gaps.length
+  if (droppedAuthors > 0) log(`WARNING: ${droppedAuthors} author dispatch(es) returned null (skipped/died) — outcome counts won't sum to ${candidates.length}.`)
+  log(`Authors → ${ok.length} AUTHORED, ${gaps.length} PRODUCT_GAP (of ${candidates.length}).`)
 
-phase('Triage')
-const triaged = await capped(ok, (a) => agent(`${GROUND}
+  phase('Triage')
+  const triaged = await capped(ok, (a) => agent(`${GROUND}
 
 You are the milestone-driver TRIAGE-REVIEWER running the feeder self-check gate (read-only, against the generated text). Assess buildability across the five criteria (Consistency, Buildability, Completeness, Dependencies, UI-flag). Default to flagging; unsure → Blocker.
 
@@ -157,11 +164,11 @@ Milestone description (Wave order): ${waveText || '(single wave)'}
 Profile: sourceGlobs ["src/**"]; uiSurfaceGlobs ["src/pages/**","src/components/**"]; nonNegotiables ["Python 3.11 backend; React 18 frontend"].
 
 Return issue, depends_on, needs_design_review (true for a UI issue), gaps (each lens/severity/type/description/to_clear; empty = GAPS: none).`,
-  { agentType: 'milestone-driver:triage-reviewer', model: MECH_MODEL, phase: 'Triage', label: `triage:${a.issue_tag}`, schema: TRIAGE_SCHEMA }).then(v => ({ a, v })), CAP)
+    { agentType: 'milestone-driver:triage-reviewer', model: MECH_MODEL, phase: 'Triage', label: `triage:${a.issue_tag}`, schema: TRIAGE_SCHEMA }).then(v => ({ a, v })), CAP)
 
-phase('Design')
-const needDesign = triaged.filter(Boolean).filter(t => t.v && t.v.needs_design_review)
-const designed = await capped(needDesign, (t) => agent(`${GROUND}
+  phase('Design')
+  const needDesign = triaged.filter(Boolean).filter(t => t.v && t.v.needs_design_review)
+  const designed = await capped(needDesign, (t) => agent(`${GROUND}
 
 You are the milestone-driver DESIGN-REVIEWER running the feeder self-check gate (read-only). Assess whether this UI issue's recorded design is specified to build a correct result: names the pattern to mirror (file:line), required states (empty/loading/error/disabled), affordances, and a11y labels. Missing required state/affordance = Blocker.
 
@@ -171,19 +178,96 @@ ${t.a.issue_body || '(empty)'}
 Pointers to existing UI surfaces (uiSurfaceGlobs): ["src/pages/**","src/components/**"] (not openable here; assess against provided text).
 
 Return issue and gaps (empty = GAPS: none).`,
-  { agentType: 'milestone-driver:design-reviewer', model: MECH_MODEL, phase: 'Design', label: `design:${t.a.issue_tag}`, schema: DESIGN_SCHEMA }).then(v => ({ a: t.a, v })), CAP)
+    { agentType: 'milestone-driver:design-reviewer', model: MECH_MODEL, phase: 'Design', label: `design:${t.a.issue_tag}`, schema: DESIGN_SCHEMA }).then(v => ({ a: t.a, v })), CAP)
 
-const designByTag = {}
-for (const d of designed.filter(Boolean)) designByTag[d.a.issue_tag] = d.v
-let passed = 0, failed = 0
-for (const t of triaged.filter(Boolean)) {
-  if (!t.v) { failed++; continue }   // triage returned no verdict (agent skipped/died) — not a clean pass
-  const fail = isBlocker(t.v.gaps) || isBlocker(designByTag[t.a.issue_tag] && designByTag[t.a.issue_tag].gaps)
-  if (fail) failed++; else passed++
+  const designByTag = {}
+  for (const d of designed.filter(Boolean)) designByTag[d.a.issue_tag] = d.v
+  let passed = 0, failed = 0
+  for (const t of triaged.filter(Boolean)) {
+    if (!t.v) { failed++; continue }   // triage returned no verdict (agent skipped/died) — not a clean pass
+    const fail = isBlocker(t.v.gaps) || isBlocker(designByTag[t.a.issue_tag] && designByTag[t.a.issue_tag].gaps)
+    if (fail) failed++; else passed++
+  }
+
+  const dispatches = { architect: 1, author: candidates.length, triage: ok.length, design: needDesign.length,
+    total: 1 + candidates.length + ok.length + needDesign.length }
+  log(`DONE ${config} rep ${repIndex + 1} → dispatches total=${dispatches.total} (arch 1 / author ${dispatches.author} / triage ${dispatches.triage} / design ${dispatches.design}); gate PASS ${passed} / FAIL ${failed}; product-gaps ${gaps.length}.`)
+
+  return { dispatches, outcome: { candidates: candidates.length, authored: ok.length, productGaps: gaps.length, gatePass: passed, gateFail: failed } }
 }
 
-const dispatches = { architect: 1, author: candidates.length, triage: ok.length, design: needDesign.length,
-  total: 1 + candidates.length + ok.length + needDesign.length }
-log(`DONE ${config} → dispatches total=${dispatches.total} (arch 1 / author ${dispatches.author} / triage ${dispatches.triage} / design ${dispatches.design}); gate PASS ${passed} / FAIL ${failed}; product-gaps ${gaps.length}.`)
+// ── Repeatability (benchmarks/HARNESS.md "Repeatability"): 3 reps, sequential ──
+// Sequential (not parallel()) — matches RESULTS.md:90's "run sequentially (clean wall-clock)"
+// precedent for this same scenario: measuring wall-clock under concurrent reps would conflate
+// rep-to-rep contention with the thing we're trying to measure.
+const REPS = 3
+const perRep = []
+for (let i = 0; i < REPS; i++) {
+  const t0 = Date.now()
+  try {
+    const { dispatches, outcome } = await runOnce(i)
+    perRep.push({ rep: i + 1, error: null, dispatches, outcome, wallClockMs: Date.now() - t0 })
+  } catch (e) {
+    log(`Rep ${i + 1} failed: ${String((e && e.message) || e)}`)
+    perRep.push({ rep: i + 1, error: String((e && e.message) || e), dispatches: null, outcome: null, wallClockMs: null })
+  }
+}
 
-return { config: CONFIG_LABEL, dispatches, outcome: { candidates: candidates.length, authored: ok.length, productGaps: gaps.length, gatePass: passed, gateFail: failed } }
+function summarize(values) {
+  if (!values.length) return { mean: null, min: null, max: null, variancePct: null }
+  const mean = values.reduce((a, b) => a + b, 0) / values.length
+  const min = Math.min(...values), max = Math.max(...values)
+  const variancePct = mean ? ((max - min) / mean) * 100 : null
+  return { mean, min, max, variancePct }
+}
+
+const successful = perRep.filter(r => !r.error)
+const repsSucceeded = successful.length
+
+const wallClockSummary = summarize(successful.map(r => r.wallClockMs))
+const dispatchesTotalSummary = summarize(successful.map(r => r.dispatches.total))
+
+const insufficientSamples = repsSucceeded < REPS
+
+const varianceFlags = {
+  wallClockMs: wallClockSummary.variancePct != null && wallClockSummary.variancePct > 20,
+  dispatchesTotal: dispatchesTotalSummary.variancePct != null && dispatchesTotalSummary.variancePct > 20,
+  insufficientSamples,
+}
+varianceFlags.needsMoreReps = varianceFlags.wallClockMs || varianceFlags.dispatchesTotal || insufficientSamples
+
+if (varianceFlags.wallClockMs) {
+  log(`needs more reps: wallClockMs spread ${wallClockSummary.variancePct.toFixed(1)}% exceeds the 20% threshold (mean ${wallClockSummary.mean.toFixed(0)}ms, min ${wallClockSummary.min}ms, max ${wallClockSummary.max}ms).`)
+}
+if (varianceFlags.dispatchesTotal) {
+  log(`needs more reps: dispatchesTotal spread ${dispatchesTotalSummary.variancePct.toFixed(1)}% exceeds the 20% threshold (mean ${dispatchesTotalSummary.mean.toFixed(1)}, min ${dispatchesTotalSummary.min}, max ${dispatchesTotalSummary.max}).`)
+}
+if (insufficientSamples && !varianceFlags.wallClockMs && !varianceFlags.dispatchesTotal) {
+  log(`needs more reps: only ${repsSucceeded}/${REPS} reps succeeded — variance can't be trusted from ${repsSucceeded} sample(s).`)
+}
+
+// ── Persist the baseline (one JSON file per config = current baseline of record) ──
+const resultsDir = 'benchmarks/after/results'
+mkdirSync(resultsDir, { recursive: true })
+const resultsFile = `${resultsDir}/scenario01-${config}.json`
+
+const result = {
+  config,
+  configLabel: CONFIG_LABEL,
+  repsRequested: REPS,
+  repsSucceeded,
+  perRep,
+  summary: {
+    wallClockMs: wallClockSummary,
+    dispatchesTotal: dispatchesTotalSummary,
+    tokens: { mean: null, min: null, max: null, source: "framework's per-run usage report — not captured in-script; see benchmarks/discovery-map.md:128-129" },
+    costUsd: { mean: null, min: null, max: null, source: "derived from the per-run transcript's token breakdown — not captured in-script" },
+  },
+  varianceFlags,
+  generatedAt: new Date().toISOString(),
+}
+
+writeFileSync(resultsFile, JSON.stringify(result, null, 2))
+log(`Baseline written → ${resultsFile} (reps ${repsSucceeded}/${REPS} succeeded)${varianceFlags.needsMoreReps ? ' — needs more reps' : ''}.`)
+
+return { config: CONFIG_LABEL, repsRequested: REPS, repsSucceeded, summary: result.summary, resultsFile }
