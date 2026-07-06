@@ -117,7 +117,18 @@ issueSize: ~1 PR each, independently buildable. productGaps carried from Step 2:
 Return CANDIDATES (tag like #A, title, surface ui|logic, risk, sketch grounded in .project), EDGES, WAVES, PRODUCT_GAPS (blocks: [] when not candidate-specific).`,
     { agentType: 'milestone-feeder:architect', model: ARCH_MODEL, phase: 'Architect', label: 'architect', schema: ARCH_SCHEMA })
 
-  if (!arch || !(arch.candidates || []).length) { log('Architect produced no candidates — aborting.'); throw new Error('no candidates') }
+  if (!arch || !(arch.candidates || []).length) {
+    log('Architect produced no candidates — aborting.')
+    // Tagged sentinel (not a generic Error) so the rep loop below can tell this expected,
+    // recordable abort apart from a genuine bug (e.g. agent() throwing on a network/schema
+    // failure). arch is carried on the error so an all-reps-failed run can still report the
+    // last rep's architect output instead of losing it. Mirrors scenario06-run.mjs's abort
+    // sentinel (issue #44).
+    const err = new Error('no candidates')
+    err.isAbort = true
+    err.arch = arch
+    throw err
+  }
   const candidates = arch.candidates
   log(`Architect → ${candidates.length} candidates, ${(arch.product_gaps||[]).length} product gap(s).`)
 
@@ -202,13 +213,22 @@ Return issue and gaps (empty = GAPS: none).`,
 // rep-to-rep contention with the thing we're trying to measure.
 const REPS = 3
 const perRep = []
+let lastArch = null
 for (let i = 0; i < REPS; i++) {
   const t0 = Date.now()
   try {
     const { dispatches, outcome } = await runOnce(i)
     perRep.push({ rep: i + 1, error: null, dispatches, outcome, wallClockMs: Date.now() - t0 })
   } catch (e) {
-    log(`Rep ${i + 1} failed: ${String((e && e.message) || e)}`)
+    const isAbort = !!(e && e.isAbort)
+    if (e && e.arch !== undefined) lastArch = e.arch
+    if (isAbort) {
+      log(`Rep ${i + 1} failed: ${String((e && e.message) || e)}`)
+    } else {
+      // A genuine bug (not the architect-abort sentinel) — log distinctly so a human scanning
+      // the log can tell "architect legitimately returned nothing" apart from "our harness broke".
+      log(`Rep ${i + 1} — UNEXPECTED ERROR (not the architect-abort sentinel): ${String((e && e.message) || e)}`)
+    }
     perRep.push({ rep: i + 1, error: String((e && e.message) || e), dispatches: null, outcome: null, wallClockMs: null })
   }
 }
@@ -223,6 +243,17 @@ function summarize(values) {
 
 const successful = perRep.filter(r => !r.error)
 const repsSucceeded = successful.length
+
+// AC (issue #44, superseding #32's always-persist AC): zero successful reps out of REPS means
+// every architect dispatch aborted (or crashed) — do NOT write/overwrite the baseline JSON. A
+// baseline of record must never be clobbered by a null-filled file. Return the original
+// single-run error shape (pre-existing abort behavior), tagged with how many reps were
+// attempted vs succeeded. Mirrors scenario06-run.mjs's own zero-success guard (issue #33) —
+// same semantic, ported here per #44's ruling.
+if (repsSucceeded === 0) {
+  log(`All ${REPS} reps failed — no baseline written; returning the single-run error shape (repsAttempted ${REPS}, repsSucceeded 0).`)
+  return { config: CONFIG_LABEL, error: 'no candidates', arch: lastArch || null, repsAttempted: REPS, repsSucceeded: 0 }
+}
 
 const wallClockSummary = summarize(successful.map(r => r.wallClockMs))
 const dispatchesTotalSummary = summarize(successful.map(r => r.dispatches.total))
