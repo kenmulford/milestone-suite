@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.2] - 2026-07-06
+
+### Fixed
+
+- scenario01-tier-run.mjs: never write a baseline JSON on zero successful reps (return the tagged error shape instead), and distinguish the architect-abort sentinel from genuine crashes — aligning both harness scripts' zero-success semantics (#44, PR #47).
+
 ## [0.2.1] - 2026-07-05
 
 ### Added
