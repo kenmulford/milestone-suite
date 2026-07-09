@@ -111,3 +111,7 @@ The three build plugins run in order, and the coherence-reviewer runs after each
    ```
 
 Each plugin's README has the full walkthrough — every command, its prerequisites, and how to set it up.
+
+## Looking for a setting?
+
+The shared config (`.milestone-config/driver.json` and `feeder.json`) is written by more than one plugin — the bootstrapper writes some keys, and `milestone-driver` / `milestone-feeder` each write a few of their own directly. If you can't remember which key does what or which plugin's docs to check, [docs/config-keys.md](docs/config-keys.md) lists every key in both files and points you at its owning plugin's docs.
