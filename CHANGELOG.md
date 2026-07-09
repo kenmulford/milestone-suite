@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.3] - 2026-07-09
+
+### Added
+
+- `docs/config-keys.md`: a suite-wide index of every `driver.json`/`feeder.json` key, which plugin writes it, and a link to its owning plugin's full definition — so a setting has one place to look up regardless of which plugin owns it. Linked from the README under a new "Looking for a setting?" section.
+
 ## [0.2.2] - 2026-07-06
 
 ### Fixed
