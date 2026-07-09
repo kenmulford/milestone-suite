@@ -79,6 +79,8 @@ The three build plugins run in order, and the coherence-reviewer runs after each
    ```
    /milestone-bootstrapper:plan      # interviews you, then previews everything it would write
    /milestone-bootstrapper:apply     # writes the docs, config, labels, branches, and CI
+   /milestone-bootstrapper:update    # re-runs when the project changes, syncing the docs
+   /milestone-bootstrapper:check     # read-only: flags when the docs/config have drifted from the repo
    ```
 
 2. **Plan a milestone** — [`milestone-feeder`](https://github.com/kenmulford/milestone-feeder)
@@ -105,6 +107,7 @@ The three build plugins run in order, and the coherence-reviewer runs after each
 
    ```
    /milestone-coherence-reviewer:review <branch-or-PR>   # review a built change for fit
+   /milestone-coherence-reviewer:sweep [pattern]         # opt-in: scan the whole app for the same drift
    ```
 
 Each plugin's README has the full walkthrough — every command, its prerequisites, and how to set it up.
