@@ -1,7 +1,7 @@
 > **Historical / superseded.** This brief describes the design that seeded the suite's v0.1.0
 > milestone; the shipped design has since diverged (see `.claude-plugin/marketplace.json` for
 > the current manifest and `CHANGELOG.md` for what changed and why — notably, the suite now
-> catalogs a fourth plugin (`milestone-coherence-reviewer`), plugin sources use the `url`/HTTPS
+> catalogs a fourth and fifth plugin (`milestone-coherence-reviewer`, `milestone-designer`), plugin sources use the `url`/HTTPS
 > form rather than the `github` form shown below, and the `allowCrossMarketplaceDependenciesOn`
 > key shown below has been removed). Kept for provenance; not a current spec.
 
