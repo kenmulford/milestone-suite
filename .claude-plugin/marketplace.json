@@ -3,10 +3,11 @@
   "name": "milestone-suite",
   "owner": { "name": "Ken Mulford", "email": "ken@kenmulford.com" },
   "metadata": {
-    "description": "The milestone dev-tools suite: bootstrap a repo's project brain, plan features into milestones, and drive them to merged PRs."
+    "description": "The milestone dev-tools suite: bootstrap a repo's project brain, design features up front, plan them into milestones, and drive them to merged PRs."
   },
   "plugins": [
     { "name": "milestone-bootstrapper",       "source": { "source": "url", "url": "https://github.com/kenmulford/milestone-bootstrapper.git" } },
+    { "name": "milestone-designer",           "source": { "source": "url", "url": "https://github.com/kenmulford/milestone-designer.git" } },
     { "name": "milestone-feeder",             "source": { "source": "url", "url": "https://github.com/kenmulford/milestone-feeder.git" } },
     { "name": "milestone-driver",             "source": { "source": "url", "url": "https://github.com/kenmulford/milestone-driver.git" } },
     { "name": "milestone-coherence-reviewer", "source": { "source": "url", "url": "https://github.com/kenmulford/milestone-coherence-reviewer.git" } }
