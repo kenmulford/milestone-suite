@@ -1,0 +1,111 @@
+{
+  "config": "baseline",
+  "configLabel": "baseline — all agents=Opus, serial (pre-optimization)",
+  "repsRequested": 3,
+  "repsSucceeded": 3,
+  "perRep": [
+    {
+      "rep": 1,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 3,
+        "triage": 2,
+        "design": 1,
+        "total": 7
+      },
+      "outcome": {
+        "candidates": 3,
+        "authored": 2,
+        "productGaps": 1,
+        "gatePass": 2,
+        "gateFail": 0
+      },
+      "wallClockMs": 430146,
+      "costUsd": 1.9394,
+      "billedTokens": 347052,
+      "ioTokens": 134459
+    },
+    {
+      "rep": 2,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 3,
+        "triage": 2,
+        "design": 1,
+        "total": 7
+      },
+      "outcome": {
+        "candidates": 3,
+        "authored": 2,
+        "productGaps": 1,
+        "gatePass": 2,
+        "gateFail": 0
+      },
+      "wallClockMs": 345793,
+      "costUsd": 1.4593,
+      "billedTokens": 331704,
+      "ioTokens": 120124
+    },
+    {
+      "rep": 3,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 3,
+        "triage": 2,
+        "design": 1,
+        "total": 7
+      },
+      "outcome": {
+        "candidates": 3,
+        "authored": 2,
+        "productGaps": 1,
+        "gatePass": 2,
+        "gateFail": 0
+      },
+      "wallClockMs": 433685,
+      "costUsd": 1.3017,
+      "billedTokens": 320366,
+      "ioTokens": 108486
+    }
+  ],
+  "summary": {
+    "wallClockMs": {
+      "mean": 403208,
+      "min": 345793,
+      "max": 433685
+    },
+    "dispatchesTotal": {
+      "mean": 7,
+      "min": 7,
+      "max": 7,
+      "variancePct": 0
+    },
+    "tokens": {
+      "mean": 333041,
+      "min": 320366,
+      "max": 347052,
+      "source": "billed = input+output+cache-read+cache-write, summed per-agent from workflow transcripts (agent-*.jsonl), bucketed by config via startedAt order"
+    },
+    "costUsd": {
+      "mean": 1.5668,
+      "min": 1.3017,
+      "max": 1.9394,
+      "source": "cache-aware per-model: Opus 4.8 $5/$25, Sonnet 5 $3/$15 per MTok; cache-write 1.25x input, cache-read 0.1x input (RESULTS.md list rates)"
+    },
+    "ioTokens": {
+      "mean": 121023,
+      "min": 108486,
+      "max": 134459
+    }
+  },
+  "varianceFlags": {
+    "wallClockMs": false,
+    "dispatchesTotal": false,
+    "insufficientSamples": false,
+    "needsMoreReps": false
+  },
+  "generatedAt": "2026-07-09T00:38:51Z"
+}

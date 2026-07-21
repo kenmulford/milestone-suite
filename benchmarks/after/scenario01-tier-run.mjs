@@ -1,5 +1,3 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
-
 export const meta = {
   name: 'feeder-plan-scenario01-tier',
   description: 'Apples-to-apples token/wall-clock measurement: run feeder plan Steps 3-6 on the PASSING scenario 01 (clean happy-path) with the REAL installed agents. args.config = "baseline" (all-Opus, serial) | "tiered" (Sonnet mechanical + Opus architect, concurrent). Same harness = same token accounting. Runs 3 reps per invocation and persists a mean/min/max baseline (benchmarks/HARNESS.md "Repeatability").',
@@ -15,6 +13,8 @@ export const meta = {
 let _a = args
 if (typeof _a === 'string') { try { _a = JSON.parse(_a) } catch (e) { _a = {} } }
 const config = (_a && _a.config) === 'tiered' ? 'tiered' : 'baseline'
+// generatedAt stamp threaded via args (the Workflow runtime forbids new Date()).
+const STAMP_ISO = (_a && _a.stampIso) || null
 const MECH_MODEL = config === 'tiered' ? 'sonnet' : 'opus'   // issue-author + reviewers
 const CAP = config === 'tiered' ? 4 : 1                       // Step-4/6 fan-out width (1 = serial)
 const ARCH_MODEL = 'opus'                                     // architect is the constant in both
@@ -215,10 +215,10 @@ const REPS = 3
 const perRep = []
 let lastArch = null
 for (let i = 0; i < REPS; i++) {
-  const t0 = Date.now()
   try {
     const { dispatches, outcome } = await runOnce(i)
-    perRep.push({ rep: i + 1, error: null, dispatches, outcome, wallClockMs: Date.now() - t0 })
+    // wall-clock is transcript-recovered (the Workflow runtime forbids Date.now()); null here, like tokens/cost.
+    perRep.push({ rep: i + 1, error: null, dispatches, outcome, wallClockMs: null })
   } catch (e) {
     const isAbort = !!(e && e.isAbort)
     if (e && e.arch !== undefined) lastArch = e.arch
@@ -255,7 +255,7 @@ if (repsSucceeded === 0) {
   return { config: CONFIG_LABEL, error: 'no candidates', arch: lastArch || null, repsAttempted: REPS, repsSucceeded: 0 }
 }
 
-const wallClockSummary = summarize(successful.map(r => r.wallClockMs))
+const wallClockSummary = summarize(successful.map(r => r.wallClockMs).filter(v => v != null))
 const dispatchesTotalSummary = summarize(successful.map(r => r.dispatches.total))
 
 const insufficientSamples = repsSucceeded < REPS
@@ -277,10 +277,9 @@ if (insufficientSamples && !varianceFlags.wallClockMs && !varianceFlags.dispatch
   log(`needs more reps: only ${repsSucceeded}/${REPS} reps succeeded — variance can't be trusted from ${repsSucceeded} sample(s).`)
 }
 
-// ── Persist the baseline (one JSON file per config = current baseline of record) ──
-const resultsDir = 'benchmarks/after/results'
-mkdirSync(resultsDir, { recursive: true })
-const resultsFile = `${resultsDir}/scenario01-${config}.json`
+// ── Build the baseline record. The Workflow runtime has no fs, so the CALLER persists this
+// to `resultsFile` (never write on zero-success — that path returns above without a `result`). ──
+const resultsFile = `benchmarks/after/results/scenario01-${config}.json`
 
 const result = {
   config,
@@ -295,10 +294,9 @@ const result = {
     costUsd: { mean: null, min: null, max: null, source: "derived from the per-run transcript's token breakdown — not captured in-script" },
   },
   varianceFlags,
-  generatedAt: new Date().toISOString(),
+  generatedAt: STAMP_ISO,
 }
 
-writeFileSync(resultsFile, JSON.stringify(result, null, 2))
-log(`Baseline written → ${resultsFile} (reps ${repsSucceeded}/${REPS} succeeded)${varianceFlags.needsMoreReps ? ' — needs more reps' : ''}.`)
+log(`Baseline computed for ${resultsFile} (reps ${repsSucceeded}/${REPS} succeeded)${varianceFlags.needsMoreReps ? ' — needs more reps' : ''}; caller persists.`)
 
-return { config: CONFIG_LABEL, repsRequested: REPS, repsSucceeded, summary: result.summary, resultsFile }
+return { resultsFile, result }

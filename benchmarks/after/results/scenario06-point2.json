@@ -1,0 +1,163 @@
+{
+  "config": "point2",
+  "configLabel": "point2 — tiering + concurrency, NO #87 (Step-3.5 disabled)",
+  "earlyPark": false,
+  "repsRequested": 3,
+  "repsSucceeded": 3,
+  "perRep": [
+    {
+      "rep": 1,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 10,
+        "triage": 5,
+        "design": 5,
+        "total": 21
+      },
+      "outcome": {
+        "candidates": 10,
+        "productGaps": 3,
+        "preParked": 0,
+        "authored": 5,
+        "authorProductGaps": 5,
+        "gatePass": 3,
+        "gateFail": 2
+      },
+      "architectGaps": [
+        {
+          "gap": "Row-action behavior for the list-only milestone: view/edit navigate to detail/edit pages that are explicitly out of scope, and delete semantics (soft vs hard delete, confirmation, permission gating) are unspecified.",
+          "blocks": []
+        },
+        {
+          "gap": "Empty-state primary CTA target per entity.",
+          "blocks": []
+        },
+        {
+          "gap": "Audit Log row-action set: does the Audit Log page get view/edit/delete, or view-only?",
+          "blocks": [
+            "#J"
+          ]
+        }
+      ],
+      "wallClockMs": 929103,
+      "costUsd": 4.5393,
+      "billedTokens": 1184103,
+      "ioTokens": 163885
+    },
+    {
+      "rep": 2,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 10,
+        "triage": 0,
+        "design": 0,
+        "total": 11
+      },
+      "outcome": {
+        "candidates": 10,
+        "productGaps": 3,
+        "preParked": 0,
+        "authored": 0,
+        "authorProductGaps": 10,
+        "gatePass": 0,
+        "gateFail": 0
+      },
+      "architectGaps": [
+        {
+          "gap": "What the view/edit row actions do in this milestone (destination/behavior), given the detail and edit pages they point to are explicitly out of scope (separate milestone).",
+          "blocks": []
+        },
+        {
+          "gap": "What the empty-state primary CTA does / points to on each list page, given the create flow is out of scope.",
+          "blocks": []
+        },
+        {
+          "gap": "Whether the Audit Log list page carries the full view/edit/delete row-action set or is view-only.",
+          "blocks": [
+            "#J"
+          ]
+        }
+      ],
+      "wallClockMs": 308978,
+      "costUsd": 1.6981,
+      "billedTokens": 580674,
+      "ioTokens": 44102
+    },
+    {
+      "rep": 3,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 10,
+        "triage": 5,
+        "design": 5,
+        "total": 21
+      },
+      "outcome": {
+        "candidates": 10,
+        "productGaps": 2,
+        "preParked": 0,
+        "authored": 5,
+        "authorProductGaps": 5,
+        "gatePass": 1,
+        "gateFail": 4
+      },
+      "architectGaps": [
+        {
+          "gap": "For read-only / system-generated entities the uniform view/edit/delete row actions and the required 'primary CTA relevant to the entity' empty-state have no conventional default: Audit Log is immutable/system-generated (edit/delete and a 'create' CTA are non-applicable), and Reviews are user-generated (admins moderate, not author). Which row actions and which empty-state CTA (if any) apply to these entities is a product decision.",
+          "blocks": [
+            "#H",
+            "#J"
+          ]
+        },
+        {
+          "gap": "Empty-state primary CTA and the row view/edit actions all navigate to create / detail / edit pages that are explicitly out of scope this milestone. What each destination does before those pages exist (stub route, disabled affordance, or forward-reference to the future milestone) is an undecided cross-cutting navigation-target policy.",
+          "blocks": []
+        }
+      ],
+      "wallClockMs": 913912,
+      "costUsd": 4.7045,
+      "billedTokens": 1234306,
+      "ioTokens": 152994
+    }
+  ],
+  "summary": {
+    "wallClockMs": {
+      "mean": 717331,
+      "min": 308978,
+      "max": 929103
+    },
+    "dispatchesTotal": {
+      "mean": 17.666666666666668,
+      "min": 11,
+      "max": 21,
+      "variancePct": 56.60377358490566
+    },
+    "tokens": {
+      "mean": 999694,
+      "min": 580674,
+      "max": 1234306,
+      "source": "billed = input+output+cache-read+cache-write, summed per-agent from workflow transcripts (agent-*.jsonl), bucketed by config via startedAt order"
+    },
+    "costUsd": {
+      "mean": 3.6473,
+      "min": 1.6981,
+      "max": 4.7045,
+      "source": "cache-aware per-model: Opus 4.8 $5/$25, Sonnet 5 $3/$15 per MTok; cache-write 1.25x input, cache-read 0.1x input (RESULTS.md list rates)"
+    },
+    "ioTokens": {
+      "mean": 120327,
+      "min": 44102,
+      "max": 163885
+    }
+  },
+  "varianceFlags": {
+    "wallClockMs": false,
+    "dispatchesTotal": true,
+    "insufficientSamples": false,
+    "needsMoreReps": true
+  },
+  "generatedAt": "2026-07-09T00:38:51Z"
+}

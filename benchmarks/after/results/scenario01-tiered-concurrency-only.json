@@ -1,0 +1,52 @@
+{
+  "config": "tiered",
+  "configLabel": "tiered — REQUESTED author+reviewers=Sonnet, architect=Opus, concurrent cap-4. ACTUAL: all agents ran Opus 4.8 (model overrides not honored by the current Workflow runtime) — this leg measures CONCURRENCY ONLY, not model tiering.",
+  "generatedAt": "2026-07-07",
+  "workflowRunId": "wf_af05960c-1b8",
+  "modelsActuallyRun": { "claude-opus-4-8": 21 },
+  "repsRequested": 3,
+  "repsSucceeded": 3,
+  "perRep": [
+    {
+      "rep": 1,
+      "error": null,
+      "dispatches": { "architect": 1, "author": 3, "triage": 2, "design": 1, "total": 7 },
+      "outcome": { "candidates": 3, "authored": 2, "productGaps": 1, "gatePass": 2, "gateFail": 0 },
+      "wallClockMs": 263400,
+      "ioTokens": 273500,
+      "costUsd": 2.98
+    },
+    {
+      "rep": 2,
+      "error": null,
+      "dispatches": { "architect": 1, "author": 3, "triage": 2, "design": 1, "total": 7 },
+      "outcome": { "candidates": 3, "authored": 2, "productGaps": 1, "gatePass": 1, "gateFail": 1 },
+      "wallClockMs": 250200,
+      "ioTokens": 286700,
+      "costUsd": 2.66
+    },
+    {
+      "rep": 3,
+      "error": null,
+      "dispatches": { "architect": 1, "author": 3, "triage": 2, "design": 1, "total": 7 },
+      "outcome": { "candidates": 3, "authored": 2, "productGaps": 1, "gatePass": 2, "gateFail": 0 },
+      "wallClockMs": 284400,
+      "ioTokens": 328100,
+      "costUsd": 3.36
+    }
+  ],
+  "summary": {
+    "dispatchesTotal": { "mean": 7, "min": 7, "max": 7, "variancePct": 0 },
+    "wallClockMs": { "mean": 266000, "min": 250200, "max": 284400, "source": "per-agent transcript timestamps (first→last per rep); reps sequential, dispatches within a rep concurrent (cap 4)" },
+    "tokens": { "mean": 296100, "min": 273500, "max": 328100, "source": "sum of input+output tokens across the rep's 7 agent transcripts (cache excluded)" },
+    "costUsd": { "mean": 3.00, "min": 2.66, "max": 3.36, "source": "cache-aware per-agent breakdown at Opus 4.8 $5/$25 per MTok (all agents ran Opus — see configLabel)" },
+    "cacheTotalsAllReps": { "input": 811810, "output": 76436, "cacheRead": 1290251, "cacheWrite": 381189, "costUsd": 9.00 }
+  },
+  "varianceFlags": { "wallClockMs": false, "dispatchesTotal": false, "insufficientSamples": false, "needsMoreReps": false },
+  "notes": [
+    "MODEL TIERING DID NOT EXECUTE. Both opts.model='sonnet' on the workflow agent() calls and the installed agents' own 'model: sonnet' frontmatter pins (issue-author, triage-reviewer, design-reviewer) were ignored — a 3-agent probe (wf_55553c46-4c5) confirmed sonnet/haiku/default requests all ran claude-opus-4-8. Environment limitation of the 2026-07-07 session's Workflow runtime, not a repo bug.",
+    "What this leg cleanly isolates vs scenario01-baseline.json: CONCURRENCY (cap 4 vs serial) on the same model. Wall-clock 6.74 -> 4.43 min mean (-34%). Cost $3.88 -> $3.00 mean (-23%) — driven by cache warmth, not model price: concurrent dispatches land within the 5-min cache TTL, shifting ~560K tokens from 1.25x cache-writes (944K -> 381K) to 0.1x cache-reads (753K -> 1290K).",
+    "Token count ~flat (281.7K vs 296.1K mean) — consistent with RESULTS.md's finding that token count tracks fan-out volume, not config.",
+    "To re-measure the true tiering leg, re-run scenario01-tier-run.mjs with config=tiered in an environment whose subagent model resolution honors 'sonnet' (verify with a probe first)."
+  ]
+}
