@@ -77,9 +77,13 @@ Each plugin also remains individually installable from its own repo.
 
 Each plugin except the designer also needs the GitHub CLI (`gh`) installed and signed in — the designer only touches GitHub to read an epic-issue brief. Restart Claude Code after installing so the plugins load. Every plugin's README lists its own exact prerequisites.
 
+**If you install the coherence-reviewer, install the driver too.** From `milestone-coherence-reviewer` v0.5.0, when a finding points at your code by quoting a string from it, the reviewer confirms that string is still there before keeping the finding — using a script that ships in `milestone-driver` v1.19.0. Without the driver installed, those findings are dropped instead of checked. The review still runs, and it still never blocks your merge.
+
 ## How to use the suite
 
 The build plugins run in order — the designer slots in front of the feeder when the feature has a UI — and the coherence-reviewer runs after each change is built. You set your project up once with the bootstrapper — it writes the standing docs under `.project/` and the shared config under `.milestone-config/`, and the designer, feeder, driver, and coherence-reviewer all read those. Capture how the project is built once, and every step after it grounds in that instead of guessing.
+
+Every plugin records why it made a call by citing the spot in your code that justified it. A citation can name a piece of the text at that spot instead of a line number, so it still points at the right place after the code around it moves — which matters most where the citation outlives the code, like a design spec or your `.project/` conventions. Line-numbered citations still work everywhere, and nothing already written needs changing. `milestone-driver` defines the form once, in `skills/citation-format.md`, and the other four read from it rather than each inventing their own.
 
 1. **Bootstrap your project brain** — [`milestone-bootstrapper`](https://github.com/kenmulford/milestone-bootstrapper)
 
@@ -108,6 +112,7 @@ The build plugins run in order — the designer slots in front of the feeder whe
    ```
    /milestone-feeder:plan myidea.md     # idea → a reviewable plan file (nothing on GitHub yet)
    /milestone-feeder:create myidea.md   # builds the milestone and issues on GitHub
+   /milestone-feeder:update myidea.md   # your plan changed — sync the milestone and its issues
    ```
 
 3. **Drive the milestone** — [`milestone-driver`](https://github.com/kenmulford/milestone-driver)
@@ -117,6 +122,7 @@ The build plugins run in order — the designer slots in front of the feeder whe
    ```
    /milestone-driver:solve-milestone "myapp v1.0.0"   # the milestone name the feeder set
    /milestone-driver:solve-issue 58                   # or drive a single issue
+   /milestone-driver:triage "myapp v1.0.0"            # read-only: check for gaps before building
    ```
 
 **After a change is built (optional)** — [`milestone-coherence-reviewer`](https://github.com/kenmulford/milestone-coherence-reviewer)
@@ -129,3 +135,7 @@ The build plugins run in order — the designer slots in front of the feeder whe
    ```
 
 Each plugin's README has the full walkthrough — every command, its prerequisites, and how to set it up.
+
+## Looking for a setting?
+
+The shared config (`.milestone-config/driver.json`, `feeder.json`, and `designer.json`) is written by more than one plugin — the bootstrapper writes some keys, and `milestone-driver` / `milestone-feeder` / `milestone-designer` each write a few of their own directly. If you can't remember which key does what or which plugin's docs to check, [docs/config-keys.md](docs/config-keys.md) lists every key in all three files and points you at its owning plugin's docs.
