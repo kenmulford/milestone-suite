@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-08-05
+
+### Added
+
+- README Install section: the one cross-plugin version floor in the suite — `milestone-coherence-reviewer` v0.5.0 confirms a string-quoting finding still resolves by way of the `resolve-citation` script shipped in `milestone-driver` v1.19.0, and states what a consumer loses without the driver installed.
+- README "How to use the suite": a note that a citation can name a piece of the text it points at instead of a line number, that line-numbered citations remain valid everywhere, and that `milestone-driver`'s `skills/citation-format.md` is the single definition the other four read from.
+- `docs/config-keys.md`: a suite-wide index of every `driver.json` / `feeder.json` / `designer.json` key, which plugin writes it, and a link to its owning plugin's full definition — so a setting has one place to look up regardless of which plugin owns it. Linked from the README under a new "Looking for a setting?" section.
+- README: `/milestone-feeder:update` and `/milestone-driver:triage` in the walkthrough's command blocks — both are user-invocable and were the only two the suite README omitted.
+
 ## [0.3.0] - 2026-07-13
 
 ### Added
