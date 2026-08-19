@@ -40,6 +40,7 @@ flowchart TD
         sgG -->|approved spec.md| sgF
         sgF -->|pass an issue or milestone ID| sgD
         sgD -->|after each build| sgR
+        sgD -.->|"issue parked at triage →<br/>remediate rewrites it"| sgF
     end
 
     boot ~~~ plan
@@ -113,11 +114,12 @@ Every plugin records why it made a call by citing the spot in your code that jus
    /milestone-feeder:plan myidea.md     # idea → a reviewable plan file (nothing on GitHub yet)
    /milestone-feeder:create myidea.md   # builds the milestone and issues on GitHub
    /milestone-feeder:update myidea.md   # your plan changed — sync the milestone and its issues
+   /milestone-feeder:remediate 27       # the driver parked an issue — rewrite it from the triage findings
    ```
 
 3. **Drive the milestone** — [`milestone-driver`](https://github.com/kenmulford/milestone-driver)
 
-   Hand it the milestone the feeder built. It works each issue to a merged PR the same controlled way every time — triages for gaps, finds the root cause, has a subagent write the change test-first, reviews the diff, and merges to your integration branch when CI is green. UI issues stop for your visual sign-off, risky calls park instead of guessing, and your protected branch is never touched.
+   Hand it the milestone the feeder built. It works each issue to a merged PR the same controlled way every time — triages for gaps, finds the root cause, has a subagent write the change test-first, reviews the diff, and merges to your integration branch when CI is green. UI issues stop for your visual sign-off, risky calls park instead of guessing (hand a triage-parked issue back with `/milestone-feeder:remediate`), and your protected branch is never touched.
 
    ```
    /milestone-driver:solve-milestone "myapp v1.0.0"   # the milestone name the feeder set
