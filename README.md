@@ -13,39 +13,41 @@ A single Claude Code plugin **marketplace** that catalogs the milestone dev-tool
 - **[milestone-coherence-reviewer](https://github.com/kenmulford/milestone-coherence-reviewer)** — review a built change for fit with how the app is already built.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 280, "nodeSpacing": 30, "rankSpacing": 32, "padding": 8}} }%%
 flowchart TD
-    boot(["milestone-bootstrapper · run once — preps the repo &amp; writes the shared config"])
+    boot(["milestone-bootstrapper · run once<br/>preps the repo &amp; writes the shared config"])
 
-    plan[/"your brief / feature plan<br/>(a file, an epic #, or<br/>a superpowers plan)"/]
+    plan[/"your brief / feature plan<br/>(a file, an epic #, or a plan)"/]
 
     subgraph loop [the build loop — repeats per feature]
         direction TB
         subgraph sgG [milestone-designer — designs the UI]
-            direction TB
-            g1["map the screens ·<br/>flows · states"] --> g2["draft lo-fi wireframes<br/>+ spec.md"] --> g3["you approve<br/>the design"]
+            direction LR
+            g1["map screens ·<br/>flows · states"] --> g2["lo-fi wireframes<br/>+ spec.md"] --> g3["you approve<br/>the design"]
         end
         subgraph sgF [milestone-feeder — plans the work]
-            direction TB
-            f1["read your plan"] --> f2["split into milestone(s)<br/>+ issues in build order"] --> f3["create on GitHub<br/>large feature → parent issue<br/>(md-epic + sub-issues)"]
+            direction LR
+            f1["read your plan"] --> f2["milestones + issues,<br/>ordered"] --> f3["create on GitHub<br/>(epic + sub-issues)"]
         end
         subgraph sgD [milestone-driver — does the work]
-            direction TB
-            d1["triage"] --> d2["find the root cause"] --> d3["solve test-first"] --> d4["review the diff<br/>merge on green CI"]
+            direction LR
+            d1["triage · find<br/>the root cause"] --> d2["solve test-first"] --> d3["review the diff ·<br/>merge on green CI"]
         end
         subgraph sgR [coherence-reviewer — vets the work]
-            direction TB
-            r1["review the built change"] --> r2["fits the framework &amp;<br/>patterns you've built?"] --> r3["small drift → fixed<br/>larger drift → new issues"]
+            direction LR
+            r1["review the<br/>built change"] --> r2["fits your patterns<br/>&amp; framework?"] --> r3["small drift → fixed<br/>larger → new issues"]
         end
 
         sgG -->|approved spec.md| sgF
-        sgF -->|pass an issue or milestone ID| sgD
+        sgF -->|issue or milestone ID| sgD
         sgD -->|after each build| sgR
+        sgD -.->|"parked at triage →<br/>remediate rewrites it"| sgF
     end
 
     boot ~~~ plan
     plan -->|has UI| sgG
     plan -.->|no UI| sgF
-    boot <-.-|all four read the shared config| loop
+    boot <-.-|all four read the config| loop
 
     style boot fill:#DEEBF5,stroke:#3A82B4,color:#15212B
     style plan fill:#FFFFFF,stroke:#94A9B8,color:#33506B
@@ -55,7 +57,7 @@ flowchart TD
     style sgD fill:#FFFFFF,stroke:#3A82B4,stroke-width:2px,color:#3A82B4
     style sgR fill:#FFFFFF,stroke:#5AA6D4,color:#3A82B4
     classDef action fill:#EDF4FA,stroke:#7FAECE,color:#15212B
-    class g1,g2,g3,f1,f2,f3,d1,d2,d3,d4,r1,r2,r3 action
+    class g1,g2,g3,f1,f2,f3,d1,d2,d3,r1,r2,r3 action
 ```
 
 ## Install
@@ -113,11 +115,12 @@ Every plugin records why it made a call by citing the spot in your code that jus
    /milestone-feeder:plan myidea.md     # idea → a reviewable plan file (nothing on GitHub yet)
    /milestone-feeder:create myidea.md   # builds the milestone and issues on GitHub
    /milestone-feeder:update myidea.md   # your plan changed — sync the milestone and its issues
+   /milestone-feeder:remediate 27       # the driver parked an issue — rewrite it from the triage findings
    ```
 
 3. **Drive the milestone** — [`milestone-driver`](https://github.com/kenmulford/milestone-driver)
 
-   Hand it the milestone the feeder built. It works each issue to a merged PR the same controlled way every time — triages for gaps, finds the root cause, has a subagent write the change test-first, reviews the diff, and merges to your integration branch when CI is green. UI issues stop for your visual sign-off, risky calls park instead of guessing, and your protected branch is never touched.
+   Hand it the milestone the feeder built. It works each issue to a merged PR the same controlled way every time — triages for gaps, finds the root cause, has a subagent write the change test-first, reviews the diff, and merges to your integration branch when CI is green. UI issues stop for your visual sign-off, risky calls park instead of guessing (hand a triage-parked issue back with `/milestone-feeder:remediate`), and your protected branch is never touched.
 
    ```
    /milestone-driver:solve-milestone "myapp v1.0.0"   # the milestone name the feeder set
