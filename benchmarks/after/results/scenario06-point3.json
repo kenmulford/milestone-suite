@@ -1,0 +1,171 @@
+{
+  "config": "point3",
+  "configLabel": "point3 — as-shipped (Sonnet + concurrency + #87 Step-3.5 early-park)",
+  "earlyPark": true,
+  "repsRequested": 3,
+  "repsSucceeded": 3,
+  "perRep": [
+    {
+      "rep": 1,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 3,
+        "triage": 1,
+        "design": 1,
+        "total": 6
+      },
+      "outcome": {
+        "candidates": 10,
+        "productGaps": 2,
+        "preParked": 7,
+        "authored": 1,
+        "authorProductGaps": 2,
+        "gatePass": 0,
+        "gateFail": 1
+      },
+      "architectGaps": [
+        {
+          "gap": "Empty-state primary CTA for entities admins do not directly create. design-system.md requires the empty state to show “a primary CTA relevant to the entity,” but Orders, Invoices, Shipments, Refunds, Reviews, Support Tickets, and Audit Log are system-generated or customer-originated — there is no conventional “Create X” action to point the CTA at.",
+          "blocks": [
+            "#B",
+            "#D",
+            "#E",
+            "#F",
+            "#H",
+            "#I",
+            "#J"
+          ]
+        },
+        {
+          "gap": "Row-action set for immutable / system-of-record entities. The brief's standard row actions are view/edit/delete, but for the Audit Log (immutable, system-generated) edit and delete are semantically invalid.",
+          "blocks": [
+            "#J"
+          ]
+        }
+      ],
+      "wallClockMs": 370615,
+      "costUsd": 1.6171,
+      "billedTokens": 330700,
+      "ioTokens": 49539
+    },
+    {
+      "rep": 2,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 10,
+        "triage": 1,
+        "design": 1,
+        "total": 13
+      },
+      "outcome": {
+        "candidates": 10,
+        "productGaps": 1,
+        "preParked": 0,
+        "authored": 1,
+        "authorProductGaps": 9,
+        "gatePass": 0,
+        "gateFail": 1
+      },
+      "architectGaps": [
+        {
+          "gap": "Navigation targets for the empty-state primary CTA and the view/edit row actions point at detail / create / edit pages that are explicitly out of scope this milestone. No stated convention says whether these affordances should stub, disable, or pre-wire routes to the not-yet-built pages. (Delete is fully in scope and buildable; only the CTA/view/edit targets are affected — this does not hard-block building the tables.)",
+          "blocks": []
+        }
+      ],
+      "wallClockMs": 599761,
+      "costUsd": 3.0364,
+      "billedTokens": 783285,
+      "ioTokens": 94670
+    },
+    {
+      "rep": 3,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 0,
+        "triage": 0,
+        "design": 0,
+        "total": 1
+      },
+      "outcome": {
+        "candidates": 10,
+        "productGaps": 3,
+        "preParked": 10,
+        "authored": 0,
+        "authorProductGaps": 0,
+        "gatePass": 0,
+        "gateFail": 0
+      },
+      "architectGaps": [
+        {
+          "gap": "The standard column set for each of the 10 entities is not defined.",
+          "blocks": [
+            "#A",
+            "#B",
+            "#C",
+            "#D",
+            "#E",
+            "#F",
+            "#G",
+            "#H",
+            "#I",
+            "#J"
+          ]
+        },
+        {
+          "gap": "The empty-state primary CTA target for each list page is undefined.",
+          "blocks": []
+        },
+        {
+          "gap": "Whether the Audit Log exposes edit/delete row actions or is view-only.",
+          "blocks": [
+            "#J"
+          ]
+        }
+      ],
+      "wallClockMs": 135711,
+      "costUsd": 0.5293,
+      "billedTokens": 58664,
+      "ioTokens": 25200
+    }
+  ],
+  "summary": {
+    "wallClockMs": {
+      "mean": 368695.67,
+      "min": 135711,
+      "max": 599761
+    },
+    "dispatchesTotal": {
+      "mean": 6.666666666666667,
+      "min": 1,
+      "max": 13,
+      "variancePct": 179.99999999999997
+    },
+    "tokens": {
+      "mean": 390883,
+      "min": 58664,
+      "max": 783285,
+      "source": "billed = input+output+cache-read+cache-write, summed per-agent from workflow transcripts (agent-*.jsonl), bucketed by config via startedAt order"
+    },
+    "costUsd": {
+      "mean": 1.7276,
+      "min": 0.5293,
+      "max": 3.0364,
+      "source": "cache-aware per-model: Opus 4.8 $5/$25, Sonnet 5 $3/$15 per MTok; cache-write 1.25x input, cache-read 0.1x input (RESULTS.md list rates)"
+    },
+    "ioTokens": {
+      "mean": 56469.67,
+      "min": 25200,
+      "max": 94670
+    }
+  },
+  "varianceFlags": {
+    "wallClockMs": false,
+    "dispatchesTotal": true,
+    "insufficientSamples": false,
+    "needsMoreReps": true
+  },
+  "generatedAt": "2026-07-09T00:38:51Z"
+}

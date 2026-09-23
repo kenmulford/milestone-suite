@@ -148,6 +148,91 @@ planning run, on top of the ~46% wall-clock cut.**
 - **Dispatch count is ~equal across configs** (7–8 either way) — confirming #87 is a no-op on a
   passing scenario, the property that makes this a clean tier + concurrency isolation.
 
+## Scenario 01 — 2026-07-07 re-run: the tiering leg, measured for real
+
+The section above priced "tiering" from a run whose model overrides were silently ignored — a
+later re-run (results: `results/scenario01-tiered-concurrency-only.json`) confirmed that leg had
+run **all-Opus** and measured **concurrency only**. On 2026-07-07, after a probe verified the
+Workflow runtime honors model overrides (`sonnet` → `claude-sonnet-5`, sharing Opus 4.8's
+tokenizer), the tiered config was re-run with tiering actually executing: **3 architects on
+Opus 4.8, 19 mechanical agents on Sonnet 5**, verified per-agent from transcripts. Same adapted
+harness, 3 sequential reps per config, cache-aware costing. Results of record:
+`results/scenario01-baseline.json`, `results/scenario01-tiered.json`.
+
+### The three-point ladder (3× each, same harness/day)
+
+| Config | cost/run (mean) | wall-clock (mean) | dispatches |
+|---|---|---|---|
+| baseline — all Opus, serial | $3.88 (3.58–4.20) | 6.74 min | 7 |
+| concurrency only — all Opus, cap-4 | $3.00 (2.66–3.36) | 4.43 min | 7 |
+| **tiered — Sonnet 5 mechanical + Opus architect, cap-4** | **$2.19** (1.79–2.96) | **4.24 min** | 7–8 |
+
+### What it shows
+
+1. **The −44% total cost cut decomposes cleanly.** Concurrency alone: −23% (driven by cache
+   warmth — concurrent dispatches land inside the 5-min cache TTL). Model tiering on top:
+   a further **−27%** with wall-clock ~flat (266s → 254s) — the price lever isolated, with
+   nothing else moving. Warm-cache tiered reps landed at **$1.79–1.81/run (−53% vs baseline)**;
+   the tiered rep-1 $2.96 is cold-cache (542K cache-write).
+2. **Wall-clock (−37% vs baseline) is concurrency's win, not tiering's.** Confirms the earlier
+   conclusion: at this scale, tiering is a **price** lever — not a token-count or latency lever.
+3. **Caveats** (recorded in the JSON): costs priced at Sonnet 5 **list** rates ($3/$15/MTok;
+   intro pricing through 2026-08-31 makes actual bills ~1/3 lower on the Sonnet share), and the
+   run's `ioTokens` is not comparable to the baseline's — the accounting split between plain
+   input and cache-write moved, so compare configs on cost and wall-clock only.
+
+## Scenario 01 + 06 — 2026-07-08 full-suite re-run (through the hardened Workflow runtime)
+
+Re-ran the whole after-benchmark suite — scenario 01 (baseline, tiered) and scenario 06 (point2,
+point3), 3× each — queued **sequentially in one orchestrator workflow**. The Workflow runtime had
+tightened since the 07-07 runs: it now forbids `Date`, `node:fs`, and static `import`, and requires
+`export const meta` to be the first statement. Both harness scripts were adapted to **compute-and-return**
+— they no longer persist in-script; the main thread writes `results/*.json`, and wall-clock / tokens /
+cost are recovered from the per-agent workflow transcripts (joining tokens+cost, which were already
+transcript-recovered). 116 agents, 0 errors.
+
+### Measured (3× each; cost cache-aware from transcripts)
+
+| Config | dispatches (mean, range) | billed tok/run | wall-clock/run | $/run (mean, range) |
+|---|---|---|---|---|
+| s01 baseline — Opus, serial | 7 (7–7) | 333K | 6.7 min | $1.57 (1.30–1.94) |
+| s01 tiered — Sonnet+Opus, cap-4 | 7.3 (7–8) | 387K | 5.0 min | $1.48 (1.32–1.70) |
+| s06 point2 — no #87 | 17.7 (11–21) | 1000K | 12.0 min | $3.65 (1.70–4.70) |
+| s06 point3 — as-shipped (+#87) | 6.7 (1–13) | 391K | 6.1 min | $1.73 (0.53–3.04) |
+
+Billed = input + output + cache-read + cache-write, summed per-agent from the workflow transcripts and
+bucketed by config (via `startedAt` order; the baseline bucket being **all-Opus** cross-checks the
+attribution). The billed total (6.33M) reconciles with the framework's own `subagent_tokens` (5.68M)
+within ~11% — the residual is multi-turn cache-read, billed on every call but snapshot-counted by the
+framework. Cost priced at Opus 4.8 $5/$25, Sonnet 5 $3/$15 per MTok; cache-write 1.25×, cache-read 0.1×
+input.
+
+### What holds
+
+- **#87 early-park is the robust win.** point3 vs point2: dispatches **6.7 vs 17.7**, billed **391K vs
+  1000K**, wall-clock **6.1 vs 12.0 min**, cost **$1.73 vs $3.65 (−53%)**. point2 does ~2.5× the work
+  (full 10-author fan-out + review vs mostly pre-parked), so the win is **structural** — it survives even
+  though run-order handed point2 the warmer cache.
+- **Scenario 01 is stable on dispatch/outcome** (baseline 0% variance; tiered 7–8), reconfirming #87 is a
+  no-op on a passing scenario.
+
+### The honest caveat — cross-config cache confound
+
+Running all four configs back-to-back in one workflow lets cache warmth bleed across them, so **the
+baseline↔tiered cost delta here is NOT a clean tiering measurement.** baseline ran second (cold
+scenario-01 cache, right after the scenario-06 point3 canary) at **64% cache / 121K io**; tiered ran
+third (warm — same scenario-01 prompts) at **89% cache / 42K io**. Tiered lands only ~−6% cheaper /
+−25% faster, but part of that is warm-cache ordering, not Sonnet tiering. **The 07-07 three-point ladder
+above (which controlled cache state) remains the trustworthy tiering isolation** (−27% tiering / −53%
+warm-tiered). To re-isolate tiering under this restructured harness, run baseline and tiered in separate
+workflows (or a cache-neutralizing order), not chained.
+
+### Variance
+
+Both scenario-06 configs flagged `needsMoreReps` (dispatch spread >20%): point3 swung 1→13→6 and point2
+11→21→21 — the architect's park-count nondeterminism on the park-by-design scenario. Three reps is too
+few for a stable s06 mean; the s01 configs (0% / 14%) are within threshold.
+
 ## Releases tagged this session (context)
 
 - milestone-driver **v1.11.0**, milestone-feeder **v0.4.0** (includes #87) — created at `main` HEAD,

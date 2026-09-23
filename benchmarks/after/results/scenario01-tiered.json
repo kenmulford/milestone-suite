@@ -1,0 +1,111 @@
+{
+  "config": "tiered",
+  "configLabel": "tiered — author+reviewers=Sonnet, architect=Opus, concurrent cap-4",
+  "repsRequested": 3,
+  "repsSucceeded": 3,
+  "perRep": [
+    {
+      "rep": 1,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 3,
+        "triage": 2,
+        "design": 1,
+        "total": 7
+      },
+      "outcome": {
+        "candidates": 3,
+        "authored": 2,
+        "productGaps": 1,
+        "gatePass": 1,
+        "gateFail": 1
+      },
+      "wallClockMs": 347374,
+      "costUsd": 1.4352,
+      "billedTokens": 353575,
+      "ioTokens": 25010
+    },
+    {
+      "rep": 2,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 3,
+        "triage": 3,
+        "design": 1,
+        "total": 8
+      },
+      "outcome": {
+        "candidates": 3,
+        "authored": 3,
+        "productGaps": 0,
+        "gatePass": 3,
+        "gateFail": 0
+      },
+      "wallClockMs": 315211,
+      "costUsd": 1.6981,
+      "billedTokens": 432034,
+      "ioTokens": 55650
+    },
+    {
+      "rep": 3,
+      "error": null,
+      "dispatches": {
+        "architect": 1,
+        "author": 3,
+        "triage": 2,
+        "design": 1,
+        "total": 7
+      },
+      "outcome": {
+        "candidates": 3,
+        "authored": 2,
+        "productGaps": 1,
+        "gatePass": 2,
+        "gateFail": 0
+      },
+      "wallClockMs": 241773,
+      "costUsd": 1.3166,
+      "billedTokens": 374304,
+      "ioTokens": 46570
+    }
+  ],
+  "summary": {
+    "wallClockMs": {
+      "mean": 301452.6667,
+      "min": 241773,
+      "max": 347374
+    },
+    "dispatchesTotal": {
+      "mean": 7.333333333333333,
+      "min": 7,
+      "max": 8,
+      "variancePct": 13.636363636363638
+    },
+    "tokens": {
+      "mean": 386638,
+      "min": 353575,
+      "max": 432034,
+      "source": "billed = input+output+cache-read+cache-write, summed per-agent from workflow transcripts (agent-*.jsonl), bucketed by config via startedAt order"
+    },
+    "costUsd": {
+      "mean": 1.4833,
+      "min": 1.3166,
+      "max": 1.6981,
+      "source": "cache-aware per-model: Opus 4.8 $5/$25, Sonnet 5 $3/$15 per MTok; cache-write 1.25x input, cache-read 0.1x input (RESULTS.md list rates)"
+    },
+    "ioTokens": {
+      "mean": 42410,
+      "min": 25010,
+      "max": 55650
+    }
+  },
+  "varianceFlags": {
+    "wallClockMs": false,
+    "dispatchesTotal": false,
+    "insufficientSamples": false,
+    "needsMoreReps": false
+  },
+  "generatedAt": "2026-07-09T00:38:51Z"
+}
