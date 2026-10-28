@@ -1,6 +1,14 @@
 {
   "integrationBranch": "develop",
   "protectedBranch": "main",
-  "sourceGlobs": [".claude-plugin/**", ".github/**", "README.md", "CHANGELOG.md", "LICENSE"],
-  "versioning": false
+  "sourceGlobs": [
+    ".claude-plugin/**",
+    ".github/**",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "versioning": false,
+  "parallel": true,
+  "maxParallelWorkers": 8
 }
