@@ -81,6 +81,27 @@ Each plugin except the designer also needs the GitHub CLI (`gh`) installed and s
 
 **If you install the coherence-reviewer, install the driver too.** From `milestone-coherence-reviewer` v0.5.0, when a finding points at your code by quoting a string from it, the reviewer confirms that string is still there before keeping the finding — using a script that ships in `milestone-driver` v1.19.0. Without the driver installed, those findings are dropped instead of checked. The review still runs, and it still never blocks your merge.
 
+### Codex
+
+Every plugin also runs in the Codex CLI. Codex reads this repo's marketplace directly:
+
+```
+codex plugin marketplace add anthropics/claude-plugins-official
+codex plugin add superpowers@claude-plugins-official
+codex plugin marketplace add kenmulford/milestone-suite
+codex plugin add milestone-bootstrapper@milestone-suite
+codex plugin add milestone-designer@milestone-suite
+codex plugin add milestone-feeder@milestone-suite
+codex plugin add milestone-driver@milestone-suite
+codex plugin add milestone-coherence-reviewer@milestone-suite
+```
+
+Start a new Codex session after installing. Then:
+
+- **Trust the hooks.** The driver and feeder ship mechanical gates as plugin hooks, and Codex skips them until you review and trust them in `/hooks`. Trust again after each plugin update, because a changed hook is skipped until re-trusted.
+- **Invoke skills with the plugin name.** Use `$milestone-driver:solve-issue`, not `$solve-issue`. The feeder and bootstrapper both ship `plan` and `update`, so a bare name is ambiguous.
+- **Expect these Codex limits.** Hooks can tell the main thread from a subagent but not one subagent from another, so the source-edit gates guard only the main thread. Read-only agents stay off source by their instructions. Each plugin's README lists the rest.
+
 ## How to use the suite
 
 The build plugins run in order — the designer slots in front of the feeder when the feature has a UI — and the coherence-reviewer runs after each change is built. You set your project up once with the bootstrapper — it writes the standing docs under `.project/` and the shared config under `.milestone-config/`, and the designer, feeder, driver, and coherence-reviewer all read those. Capture how the project is built once, and every step after it grounds in that instead of guessing.
